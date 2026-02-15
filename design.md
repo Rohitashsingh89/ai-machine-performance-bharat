@@ -1,27 +1,15 @@
-# Design Document: AI-Based Performance Prediction and Optimization System
+# Design Document: AI-Driven Industry 4.0 Performance Acceleration System
 
 ## Overview
 
-The AI-Based Performance Prediction and Optimization System is a comprehensive analytics platform that leverages machine learning to monitor, predict, and optimize the performance of aging manufacturing machines in Indian MSME units. The system integrates with existing data infrastructure (InfluxDB for time-series sensor data, PostgreSQL for production metrics) to provide real-time monitoring, predictive analytics, and actionable recommendations.
+The AI-Driven Industry 4.0 Performance Acceleration System is a comprehensive IoT and ML-based solution that transforms aging MSME manufacturing infrastructure into smart, data-driven production facilities. The system follows a layered architecture with clear separation between data collection, storage, analytics, and presentation layers.
 
-### Key Design Principles
-
-1. **Modularity**: Clear separation between data collection, ML processing, recommendation generation, and presentation layers
-2. **Scalability**: Architecture supports single-machine deployment with future expansion to multi-machine monitoring
-3. **Reliability**: Robust error handling, data validation, and graceful degradation when data quality issues occur
-4. **Explainability**: All predictions and recommendations include confidence scores and feature importance explanations
-5. **Real-time Performance**: Sub-5-second data retrieval and 30-second dashboard refresh cycles
-
-### Technology Stack
-
-- **Backend**: Python 3.9+ with FastAPI for REST API
-- **ML Framework**: scikit-learn for model training and inference
-- **Time-Series Database**: InfluxDB (existing infrastructure)
-- **Relational Database**: PostgreSQL (existing infrastructure)
-- **Frontend**: React with TypeScript for dashboard UI
-- **Visualization**: Recharts for charts and graphs
-- **Caching**: Redis for caching predictions and computed metrics
-- **Task Scheduling**: Celery with Redis broker for periodic model training and data aggregation
+The core design philosophy emphasizes:
+- Non-invasive integration with existing equipment
+- Real-time data processing with sub-second latency
+- Scalable ML pipeline supporting multiple regression algorithms
+- Fault-tolerant operation with graceful degradation
+- Intuitive visualization for non-technical operators
 
 ## Architecture
 
@@ -29,2213 +17,1158 @@ The AI-Based Performance Prediction and Optimization System is a comprehensive a
 
 ```mermaid
 graph TB
-    subgraph "Data Sources"
-        InfluxDB[(InfluxDB<br/>Time-Series Data)]
-        PostgreSQL[(PostgreSQL<br/>Production Metrics)]
+    subgraph "Manufacturing Floor"
+        M1[Machine 1<br/>Sensors/PLC]
+        M2[Machine 2<br/>Sensors/PLC]
+        M3[Machine N<br/>Sensors/PLC]
     end
     
-    subgraph "Backend Services"
-        DataCollector[Data Collector Service]
-        MLEngine[ML Engine Service]
-        RecommendationEngine[Recommendation Engine]
-        AlertService[Alert Service]
-        APIGateway[API Gateway<br/>FastAPI]
+    subgraph "Data Collection Layer"
+        MB[Modbus Gateway]
+        MQTT[MQTT Broker]
     end
     
-    subgraph "Storage & Cache"
-        Redis[(Redis Cache)]
-        ModelStore[(Model Storage<br/>Filesystem)]
+    subgraph "Storage Layer"
+        TSDB[(InfluxDB<br/>Time-Series)]
+        KPIDB[(PostgreSQL<br/>KPIs)]
     end
     
-    subgraph "Frontend"
-        Dashboard[React Dashboard]
+    subgraph "Analytics Layer"
+        PPE[Performance<br/>Prediction Engine]
+        DIM[Degradation<br/>Intelligence Module]
+        MOE[Maximum Output<br/>Estimator]
+        REC[Recommendation<br/>Engine]
     end
     
-    subgraph "Scheduled Tasks"
-        ModelTraining[Model Training Job<br/>Weekly]
-        DataAggregation[Data Aggregation Job<br/>Daily]
-        MetricsCalculation[Metrics Calculation<br/>Every 30s]
+    subgraph "Presentation Layer"
+        API[REST API]
+        DASH[Real-Time<br/>Dashboard]
     end
     
-    InfluxDB --> DataCollector
-    PostgreSQL --> DataCollector
-    DataCollector --> Redis
-    DataCollector --> MLEngine
-    MLEngine --> ModelStore
-    MLEngine --> RecommendationEngine
-    RecommendationEngine --> AlertService
-    DataCollector --> APIGateway
-    MLEngine --> APIGateway
-    RecommendationEngine --> APIGateway
-    AlertService --> APIGateway
-    Redis --> APIGateway
-    APIGateway --> Dashboard
-    
-    ModelTraining -.-> MLEngine
-    DataAggregation -.-> DataCollector
-    MetricsCalculation -.-> DataCollector
+    M1 -->|Modbus| MB
+    M2 -->|Modbus| MB
+    M3 -->|Modbus| MB
+    MB -->|Publish| MQTT
+    MQTT -->|Subscribe| TSDB
+    TSDB -->|Aggregate| KPIDB
+    TSDB --> PPE
+    TSDB --> DIM
+    KPIDB --> PPE
+    KPIDB --> DIM
+    KPIDB --> MOE
+    PPE --> REC
+    DIM --> REC
+    MOE --> REC
+    KPIDB --> API
+    PPE --> API
+    DIM --> API
+    MOE --> API
+    REC --> API
+    API --> DASH
 ```
 
-### Component Architecture
+### Architectural Layers
 
-#### 1. Data Collector Service
+**1. Data Collection Layer**
+- Modbus Gateway: Polls sensors/PLCs at configurable intervals (default 1 second)
+- MQTT Broker: Provides pub/sub messaging for real-time data distribution
+- Handles protocol translation from industrial (Modbus) to IoT (MQTT)
 
-**Responsibilities**:
-- Connect to InfluxDB and PostgreSQL with configurable credentials
-- Retrieve sensor data (output rate, temperature, vibration, power, load) within 5 seconds
-- Retrieve production metrics (actual output, downtime, maintenance logs)
-- Validate data quality and flag anomalies
-- Cache frequently accessed data in Redis
+**2. Storage Layer**
+- InfluxDB: Optimized for time-series sensor data with automatic retention policies
+- PostgreSQL: Stores aggregated KPIs, configuration, user data, and ML model metadata
+- Data flows from raw (InfluxDB) to aggregated (PostgreSQL) every 5 minutes
 
-**Key Classes**:
-- `InfluxDBConnector`: Manages InfluxDB connections with retry logic
-- `PostgreSQLConnector`: Manages PostgreSQL connections with retry logic
-- `DataValidator`: Validates sensor readings against configured ranges
-- `DataAggregator`: Aggregates raw sensor data into meaningful metrics
+**3. Analytics Layer**
+- Four specialized ML/AI modules operating independently
+- Each module reads from storage, processes, and writes results back
+- Modules can be scaled independently based on computational needs
 
-#### 2. ML Engine Service
+**4. Presentation Layer**
+- REST API: Provides unified interface to all system capabilities
+- Dashboard: React-based SPA with WebSocket for real-time updates
+- Supports multiple concurrent users with role-based views
 
-**Responsibilities**:
-- Train prediction models using historical data
-- Generate predictions for next-shift production output
-- Calculate feature importance for explainability
-- Evaluate model performance and trigger retraining when needed
-- Store and version trained models
+### Technology Stack
 
-**Key Classes**:
-- `ModelTrainer`: Trains Linear Regression, Random Forest, and Gradient Boosting models
-- `ModelEvaluator`: Calculates MAPE, R-squared, and selects best model
-- `PredictionService`: Generates predictions with confidence intervals
-- `FeatureImportanceCalculator`: Computes and ranks feature importance
+**Data Collection & Messaging:**
+- Modbus: pymodbus (Python library for Modbus TCP/RTU)
+- MQTT: Eclipse Mosquitto broker, paho-mqtt client library
+- Message format: JSON with schema validation
 
-#### 3. Recommendation Engine
+**Storage:**
+- InfluxDB 2.x: Time-series database with Flux query language
+- PostgreSQL 14+: Relational database with TimescaleDB extension for hybrid workloads
+- Connection pooling: pgbouncer for PostgreSQL, InfluxDB client connection pooling
 
-**Responsibilities**:
-- Analyze performance gaps between actual and achievable output
-- Generate parameter optimization recommendations
-- Suggest maintenance actions based on degradation patterns
-- Provide energy efficiency improvement suggestions
-- Track recommendation effectiveness
+**ML/Analytics:**
+- Python 3.10+ with scikit-learn for ML models
+- pandas for data manipulation
+- numpy for numerical computations
+- statsmodels for time-series analysis and statistical tests
+- Model serialization: joblib for model persistence
 
-**Key Classes**:
-- `PerformanceAnalyzer`: Identifies performance gaps and root causes
-- `ParameterOptimizer`: Suggests optimal operating parameter ranges
-- `MaintenanceAdvisor`: Recommends maintenance actions based on health scores
-- `EnergyOptimizer`: Identifies energy waste and optimization opportunities
-- `RecommendationTracker`: Tracks implemented recommendations and actual impact
+**API & Dashboard:**
+- FastAPI (Python) for REST API with automatic OpenAPI documentation
+- React 18+ with TypeScript for dashboard
+- Chart.js or Recharts for data visualization
+- WebSocket (Socket.io) for real-time updates
+- Authentication: JWT tokens with refresh mechanism
 
-#### 4. Alert Service
-
-**Responsibilities**:
-- Monitor metrics against configured thresholds
-- Generate alerts for performance, health, and planning issues
-- Log alerts to PostgreSQL for historical tracking
-- Support configurable alert thresholds
-
-**Key Classes**:
-- `AlertMonitor`: Continuously monitors metrics and triggers alerts
-- `AlertManager`: Manages alert lifecycle and persistence
-- `ThresholdConfiguration`: Stores and validates alert thresholds
-
-#### 5. API Gateway (FastAPI)
-
-**Responsibilities**:
-- Expose REST API endpoints for dashboard
-- Handle authentication and authorization
-- Aggregate data from multiple services
-- Serve cached data when available
-
-**Key Endpoints**:
-- `GET /api/v1/metrics/current`: Current efficiency, health, and output metrics
-- `GET /api/v1/predictions/next-shift`: Predicted output for next 8-hour shift
-- `GET /api/v1/degradation/trends`: Historical degradation analysis
-- `GET /api/v1/recommendations`: Top recommendations with expected impact
-- `GET /api/v1/alerts`: Active and historical alerts
-- `GET /api/v1/reports/generate`: Generate historical reports
-- `POST /api/v1/config`: Update system configuration
-
-#### 6. React Dashboard
-
-**Responsibilities**:
-- Display real-time metrics with 30-second refresh
-- Visualize trends, predictions, and comparisons
-- Present recommendations with actionable details
-- Support report generation and export
-- Provide configuration interface
-
-**Key Components**:
-- `SummaryPanel`: Shows efficiency score, health score, and alerts
-- `ComparisonChart`: Displays rated vs actual vs achievable output
-- `TrendGraph`: Shows historical performance and projections
-- `RecommendationsPanel`: Lists top 5 recommendations
-- `SensorReadings`: Real-time sensor data with status indicators
-- `ReportGenerator`: Exports PDF/CSV reports
-
-
+**Infrastructure:**
+- Docker containers for all services
+- Docker Compose for local development
+- Kubernetes-ready for production scaling
+- Nginx as reverse proxy and load balancer
 
 ## Components and Interfaces
 
-### Data Collector Service
+### 1. Modbus Gateway Service
 
-#### InfluxDBConnector
+**Responsibility:** Poll manufacturing equipment and publish sensor data to MQTT.
+
+**Key Classes:**
 
 ```python
-class InfluxDBConnector:
-    """Manages connections to InfluxDB with retry logic and error handling."""
+class ModbusDevice:
+    """Represents a single Modbus-connected device"""
+    device_id: str
+    host: str
+    port: int
+    unit_id: int
+    registers: List[RegisterMapping]
+    poll_interval: float  # seconds
     
-    def __init__(self, host: str, port: int, database: str, username: str, password: str):
-        """Initialize connection parameters."""
-        
-    def connect(self) -> bool:
-        """Establish connection with exponential backoff retry (max 3 attempts)."""
-        
-    def query_sensor_data(
-        self, 
-        measurement: str, 
-        start_time: datetime, 
-        end_time: datetime,
-        fields: List[str]
-    ) -> pd.DataFrame:
-        """Query time-series sensor data within time range.
-        
-        Returns DataFrame with columns: timestamp, field_name, value
-        Raises: ConnectionError if connection fails after retries
-        """
-        
-    def validate_connection(self) -> bool:
-        """Test connection health."""
+    def connect() -> bool
+    def read_registers() -> Dict[str, float]
+    def disconnect() -> None
+
+class RegisterMapping:
+    """Maps Modbus register to sensor metric"""
+    register_address: int
+    register_type: str  # 'holding', 'input', 'coil'
+    metric_name: str
+    data_type: str  # 'int16', 'float32', etc.
+    scale_factor: float
+    unit: str
+
+class ModbusGateway:
+    """Manages multiple Modbus devices and publishes to MQTT"""
+    devices: List[ModbusDevice]
+    mqtt_client: MQTTClient
+    
+    def start() -> None
+    def stop() -> None
+    def poll_device(device: ModbusDevice) -> None
+    def publish_reading(device_id: str, data: Dict) -> None
 ```
 
-#### PostgreSQLConnector
+**Interface:**
+- Input: Modbus TCP/RTU from PLCs/sensors
+- Output: MQTT messages to topic `machines/{machine_id}/sensors`
+- Configuration: JSON file with device definitions
 
-```python
-class PostgreSQLConnector:
-    """Manages connections to PostgreSQL with retry logic."""
-    
-    def __init__(self, host: str, port: int, database: str, username: str, password: str):
-        """Initialize connection parameters."""
-        
-    def connect(self) -> bool:
-        """Establish connection with exponential backoff retry (max 3 attempts)."""
-        
-    def query_production_metrics(
-        self, 
-        start_time: datetime, 
-        end_time: datetime
-    ) -> pd.DataFrame:
-        """Query production metrics (actual output, downtime, maintenance logs).
-        
-        Returns DataFrame with columns: timestamp, actual_output, downtime_minutes, 
-                                       maintenance_type, breakdown_duration
-        """
-        
-    def store_alert(self, alert: Alert) -> int:
-        """Store alert to database and return alert ID."""
-        
-    def store_recommendation_impact(self, recommendation_id: int, actual_impact: float):
-        """Store actual impact of implemented recommendation."""
+**Message Format (MQTT):**
+```json
+{
+  "machine_id": "CNC-001",
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "metrics": {
+    "spindle_speed": 3500.0,
+    "temperature": 65.2,
+    "vibration": 0.8,
+    "power_consumption": 12.5,
+    "cycle_time": 45.2
+  }
+}
 ```
 
-#### DataValidator
+### 2. Data Ingestion Service
+
+**Responsibility:** Subscribe to MQTT, validate, and store data in InfluxDB.
+
+**Key Classes:**
 
 ```python
-class DataValidator:
-    """Validates sensor data quality and flags anomalies."""
+class DataIngestionService:
+    """Subscribes to MQTT and writes to InfluxDB"""
+    mqtt_client: MQTTClient
+    influx_client: InfluxDBClient
+    buffer: CircularBuffer  # For fault tolerance
     
-    def __init__(self, sensor_ranges: Dict[str, Tuple[float, float]]):
-        """Initialize with configurable min/max ranges per sensor."""
-        
-    def validate_sensor_reading(
-        self, 
-        sensor_name: str, 
-        value: float
-    ) -> ValidationResult:
-        """Validate single sensor reading against configured range.
-        
-        Returns ValidationResult with is_valid flag and reason if invalid
-        """
-        
-    def detect_anomalies(
-        self, 
-        sensor_data: pd.DataFrame, 
-        sensor_name: str
-    ) -> List[AnomalyRecord]:
-        """Detect anomalies using 3-sigma rule.
-        
-        Returns list of anomalous readings with timestamps
-        """
-        
-    def calculate_data_quality_score(
-        self, 
-        sensor_data: pd.DataFrame, 
-        time_window: timedelta
-    ) -> float:
-        """Calculate percentage of valid data points in time window.
-        
-        Returns score between 0.0 and 1.0
-        """
+    def start() -> None
+    def on_message(topic: str, payload: bytes) -> None
+    def validate_message(data: Dict) -> bool
+    def write_to_influx(data: Dict) -> None
+    def flush_buffer() -> None
+
+class CircularBuffer:
+    """In-memory buffer for fault tolerance"""
+    max_size: int  # 1 hour of data
+    buffer: Deque[Dict]
+    
+    def add(data: Dict) -> None
+    def flush_to_storage(storage: InfluxDBClient) -> int
+    def is_full() -> bool
 ```
 
-#### DataAggregator
+**Interface:**
+- Input: MQTT messages from `machines/+/sensors`
+- Output: InfluxDB writes to measurement `sensor_data`
+- Error handling: Buffer in memory if InfluxDB unavailable
 
-```python
-class DataAggregator:
-    """Aggregates raw sensor data into meaningful metrics."""
-    
-    def calculate_efficiency_score(
-        self, 
-        actual_output: float, 
-        rated_capacity: float
-    ) -> float:
-        """Calculate efficiency as (actual_output / rated_capacity) * 100."""
-        
-    def calculate_energy_efficiency(
-        self, 
-        power_consumption: float, 
-        output: float
-    ) -> float:
-        """Calculate power consumption per unit output (kWh/meter)."""
-        
-    def aggregate_sensor_data(
-        self, 
-        sensor_data: pd.DataFrame, 
-        aggregation_period: str
-    ) -> pd.DataFrame:
-        """Aggregate sensor data by period (e.g., '30s', '1h', '1d').
-        
-        Returns DataFrame with mean, min, max, std for each sensor
-        """
+**InfluxDB Schema:**
+```
+measurement: sensor_data
+tags:
+  - machine_id
+  - facility_id (optional)
+fields:
+  - spindle_speed (float)
+  - temperature (float)
+  - vibration (float)
+  - power_consumption (float)
+  - cycle_time (float)
+  - [other metrics]
+timestamp: nanosecond precision
 ```
 
-### ML Engine Service
+### 3. KPI Aggregation Service
 
-#### ModelTrainer
+**Responsibility:** Compute and store aggregated KPIs in PostgreSQL.
+
+**Key Classes:**
 
 ```python
-class ModelTrainer:
-    """Trains and manages ML models for production prediction."""
+class KPIAggregator:
+    """Aggregates time-series data into KPIs"""
+    influx_client: InfluxDBClient
+    postgres_conn: PostgreSQLConnection
+    aggregation_interval: int  # seconds (default 300)
     
-    def __init__(self, algorithms: List[str] = ['linear', 'random_forest', 'gradient_boosting']):
-        """Initialize with list of algorithms to train."""
-        
-    def prepare_training_data(
-        self, 
-        historical_data: pd.DataFrame, 
-        lookback_days: int = 90
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Prepare features (X) and target (y) from historical data.
-        
-        Features: temperature, vibration, power, load, speed, downtime_hours
-        Target: actual_output
-        
-        Returns: (X_train, y_train) with 80/20 split
-        """
-        
-    def train_model(
-        self, 
-        X_train: np.ndarray, 
-        y_train: np.ndarray, 
-        algorithm: str
-    ) -> TrainedModel:
-        """Train single model with specified algorithm.
-        
-        Returns TrainedModel object with fitted estimator and metadata
-        """
-        
-    def train_all_models(
-        self, 
-        historical_data: pd.DataFrame
-    ) -> List[TrainedModel]:
-        """Train all configured algorithms and return list of trained models."""
-```
+    def run_aggregation_cycle() -> None
+    def compute_efficiency(machine_id: str, window: TimeWindow) -> float
+    def compute_output_rate(machine_id: str, window: TimeWindow) -> float
+    def compute_energy_metrics(machine_id: str, window: TimeWindow) -> Dict
+    def store_kpis(kpis: List[KPI]) -> None
 
-#### ModelEvaluator
-
-```python
-class ModelEvaluator:
-    """Evaluates model performance and selects best model."""
-    
-    def calculate_mape(
-        self, 
-        y_true: np.ndarray, 
-        y_pred: np.ndarray
-    ) -> float:
-        """Calculate Mean Absolute Percentage Error."""
-        
-    def calculate_r_squared(
-        self, 
-        y_true: np.ndarray, 
-        y_pred: np.ndarray
-    ) -> float:
-        """Calculate R-squared score."""
-        
-    def evaluate_model(
-        self, 
-        model: TrainedModel, 
-        X_val: np.ndarray, 
-        y_val: np.ndarray
-    ) -> ModelMetrics:
-        """Evaluate model on validation set.
-        
-        Returns ModelMetrics with MAPE, R-squared, and validation predictions
-        """
-        
-    def select_best_model(
-        self, 
-        models: List[TrainedModel], 
-        X_val: np.ndarray, 
-        y_val: np.ndarray
-    ) -> TrainedModel:
-        """Select model with lowest MAPE below 10% threshold.
-        
-        Returns best model or raises ModelPerformanceError if all exceed threshold
-        """
-```
-
-#### PredictionService
-
-```python
-class PredictionService:
-    """Generates predictions with confidence intervals."""
-    
-    def __init__(self, model: TrainedModel):
-        """Initialize with trained model."""
-        
-    def predict_next_shift(
-        self, 
-        current_parameters: Dict[str, float], 
-        shift_duration_hours: int = 8
-    ) -> Prediction:
-        """Predict production output for next shift.
-        
-        Returns Prediction with value, confidence_score, and confidence_interval
-        """
-        
-    def calculate_confidence_interval(
-        self, 
-        prediction: float, 
-        historical_errors: np.ndarray
-    ) -> Tuple[float, float]:
-        """Calculate 95% confidence interval based on historical prediction errors."""
-        
-    def should_display_confidence_interval(self, confidence_score: float) -> bool:
-        """Return True if confidence below 80% threshold."""
-```
-
-#### FeatureImportanceCalculator
-
-```python
-class FeatureImportanceCalculator:
-    """Calculates and ranks feature importance for explainability."""
-    
-    def calculate_feature_importance(
-        self, 
-        model: TrainedModel
-    ) -> Dict[str, float]:
-        """Extract feature importance from trained model.
-        
-        Returns dict mapping feature names to importance scores (0-1)
-        """
-        
-    def get_top_features(
-        self, 
-        feature_importance: Dict[str, float], 
-        top_n: int = 3
-    ) -> List[Tuple[str, float]]:
-        """Return top N features sorted by importance."""
-```
-
-### Recommendation Engine
-
-#### PerformanceAnalyzer
-
-```python
-class PerformanceAnalyzer:
-    """Analyzes performance gaps and identifies root causes."""
-    
-    def calculate_performance_gap(
-        self, 
-        actual_output: float, 
-        maximum_achievable_output: float
-    ) -> float:
-        """Calculate gap as percentage: (max - actual) / max * 100."""
-        
-    def should_generate_recommendations(self, performance_gap: float) -> bool:
-        """Return True if gap exceeds 10% threshold."""
-        
-    def analyze_parameter_correlations(
-        self, 
-        historical_data: pd.DataFrame
-    ) -> Dict[str, float]:
-        """Calculate correlation between parameters and efficiency.
-        
-        Returns dict mapping parameter names to correlation coefficients
-        """
-```
-
-#### ParameterOptimizer
-
-```python
-class ParameterOptimizer:
-    """Generates parameter optimization recommendations."""
-    
-    def find_optimal_parameter_ranges(
-        self, 
-        historical_data: pd.DataFrame, 
-        parameter_name: str
-    ) -> Tuple[float, float]:
-        """Find parameter range associated with top 10% efficiency periods.
-        
-        Returns (min_value, max_value) for optimal range
-        """
-        
-    def generate_parameter_recommendation(
-        self, 
-        parameter_name: str, 
-        current_value: float, 
-        optimal_range: Tuple[float, float]
-    ) -> Recommendation:
-        """Generate recommendation if current value outside optimal range.
-        
-        Returns Recommendation with suggested value, expected impact, and confidence
-        """
-```
-
-#### MaintenanceAdvisor
-
-```python
-class MaintenanceAdvisor:
-    """Recommends maintenance actions based on health scores and degradation."""
-    
-    def calculate_machine_health_score(
-        self, 
-        degradation_rate: float, 
-        downtime_frequency: float, 
-        efficiency_variance: float
-    ) -> float:
-        """Calculate composite health score (0-100).
-        
-        Formula: 100 - (degradation_weight * degradation_rate + 
-                        downtime_weight * downtime_frequency + 
-                        variance_weight * efficiency_variance)
-        """
-        
-    def should_recommend_maintenance(
-        self, 
-        health_score: float, 
-        maximum_achievable_output: float, 
-        rated_capacity: float
-    ) -> bool:
-        """Return True if health < 60 or achievable < 85% of rated."""
-        
-    def generate_maintenance_recommendation(
-        self, 
-        health_score: float, 
-        degradation_patterns: Dict[str, float]
-    ) -> Recommendation:
-        """Generate maintenance recommendation based on health and patterns."""
-```
-
-#### EnergyOptimizer
-
-```python
-class EnergyOptimizer:
-    """Identifies energy optimization opportunities."""
-    
-    def calculate_energy_efficiency_baseline(
-        self, 
-        historical_data: pd.DataFrame, 
-        days: int = 30
-    ) -> float:
-        """Calculate average kWh/meter over specified days."""
-        
-    def identify_inefficient_periods(
-        self, 
-        sensor_data: pd.DataFrame, 
-        baseline: float
-    ) -> List[InefficiencyRecord]:
-        """Find periods where power consumption exceeds baseline without output increase.
-        
-        Returns list of records with timestamp, power, output, and efficiency
-        """
-        
-    def estimate_cost_savings(
-        self, 
-        potential_reduction_kwh: float, 
-        electricity_rate: float
-    ) -> float:
-        """Calculate estimated cost savings from energy optimization."""
-```
-
-#### RecommendationTracker
-
-```python
-class RecommendationTracker:
-    """Tracks recommendation implementation and actual impact."""
-    
-    def record_recommendation(self, recommendation: Recommendation) -> int:
-        """Store recommendation and return recommendation ID."""
-        
-    def mark_implemented(
-        self, 
-        recommendation_id: int, 
-        implementation_timestamp: datetime
-    ):
-        """Mark recommendation as implemented."""
-        
-    def record_actual_impact(
-        self, 
-        recommendation_id: int, 
-        actual_impact: float
-    ):
-        """Record measured impact after implementation."""
-        
-    def update_confidence_scores(self):
-        """Update recommendation confidence based on historical accuracy."""
-```
-
-### Alert Service
-
-#### AlertMonitor
-
-```python
-class AlertMonitor:
-    """Monitors metrics and triggers alerts based on thresholds."""
-    
-    def __init__(self, thresholds: ThresholdConfiguration):
-        """Initialize with configured alert thresholds."""
-        
-    def check_efficiency_alert(self, efficiency_score: float) -> Optional[Alert]:
-        """Generate alert if efficiency below threshold (default 70%)."""
-        
-    def check_health_alert(self, health_score: float) -> Optional[Alert]:
-        """Generate critical alert if health below 60."""
-        
-    def check_planning_alert(
-        self, 
-        predicted_output: float, 
-        production_target: float
-    ) -> Optional[Alert]:
-        """Generate alert if prediction below target by more than 20%."""
-        
-    def monitor_all_metrics(
-        self, 
-        current_metrics: Dict[str, float]
-    ) -> List[Alert]:
-        """Check all metrics and return list of triggered alerts."""
-```
-
-#### AlertManager
-
-```python
-class AlertManager:
-    """Manages alert lifecycle and persistence."""
-    
-    def create_alert(
-        self, 
-        severity: str, 
-        message: str, 
-        affected_machine: str
-    ) -> Alert:
-        """Create alert with timestamp and unique ID."""
-        
-    def persist_alert(self, alert: Alert) -> int:
-        """Store alert to PostgreSQL and return alert ID."""
-        
-    def get_active_alerts(self) -> List[Alert]:
-        """Retrieve all unacknowledged alerts."""
-        
-    def acknowledge_alert(self, alert_id: int):
-        """Mark alert as acknowledged."""
-```
-
-
-
-## Data Models
-
-### Core Data Models
-
-#### MachineConfiguration
-
-```python
-@dataclass
-class MachineConfiguration:
-    """Configuration for a single machine."""
+class KPI:
+    """Represents a calculated KPI"""
     machine_id: str
-    machine_name: str
-    rated_capacity: float  # Maximum output when new (meters/hour)
-    rated_capacity_unit: str  # e.g., "meters/hour"
-    sensor_mappings: Dict[str, str]  # Maps logical sensor names to InfluxDB measurements
-    alert_thresholds: Dict[str, float]  # Custom alert thresholds
-    created_at: datetime
-    updated_at: datetime
-```
-
-#### SensorReading
-
-```python
-@dataclass
-class SensorReading:
-    """Single sensor measurement from InfluxDB."""
     timestamp: datetime
-    sensor_name: str
+    metric_name: str
     value: float
     unit: str
-    is_valid: bool
-    validation_message: Optional[str] = None
+    aggregation_window: str  # '5min', '1hour', '1day'
 ```
 
-#### ProductionMetrics
+**PostgreSQL Schema:**
 
-```python
-@dataclass
-class ProductionMetrics:
-    """Aggregated production metrics for a time period."""
-    timestamp: datetime
-    actual_output: float
-    output_unit: str
-    operating_time_hours: float
-    downtime_minutes: float
-    power_consumption_kwh: float
-    efficiency_score: float  # (actual_output / rated_capacity) * 100
-    energy_efficiency: float  # kWh per unit output
-```
-
-#### PerformanceSnapshot
-
-```python
-@dataclass
-class PerformanceSnapshot:
-    """Current performance state of a machine."""
-    machine_id: str
-    timestamp: datetime
-    efficiency_score: float
-    actual_output: float
-    rated_capacity: float
-    maximum_achievable_output: float
-    machine_health_score: float
-    sensor_readings: Dict[str, float]  # Current sensor values
-    data_quality_score: float
-```
-
-### ML Model Data Models
-
-#### TrainedModel
-
-```python
-@dataclass
-class TrainedModel:
-    """Metadata and artifacts for a trained ML model."""
-    model_id: str
-    algorithm: str  # 'linear', 'random_forest', 'gradient_boosting'
-    trained_at: datetime
-    training_data_period: Tuple[datetime, datetime]
-    feature_names: List[str]
-    feature_importance: Dict[str, float]
-    validation_mape: float
-    validation_r_squared: float
-    model_artifact_path: str  # Path to serialized model file
-    is_active: bool
-```
-
-#### Prediction
-
-```python
-@dataclass
-class Prediction:
-    """Production prediction with confidence metrics."""
-    prediction_id: str
-    machine_id: str
-    predicted_at: datetime
-    prediction_horizon: str  # e.g., "next_8_hour_shift"
-    predicted_output: float
-    confidence_score: float  # 0.0 to 1.0
-    confidence_interval: Optional[Tuple[float, float]]  # (lower, upper) if confidence < 0.8
-    top_influencing_factors: List[Tuple[str, float]]  # Top 3 features with importance
-    model_id: str
-```
-
-#### ModelMetrics
-
-```python
-@dataclass
-class ModelMetrics:
-    """Performance metrics for model evaluation."""
-    model_id: str
-    mape: float  # Mean Absolute Percentage Error
-    r_squared: float
-    mae: float  # Mean Absolute Error
-    rmse: float  # Root Mean Squared Error
-    validation_predictions: np.ndarray
-    validation_actuals: np.ndarray
-```
-
-### Recommendation Data Models
-
-#### Recommendation
-
-```python
-@dataclass
-class Recommendation:
-    """Actionable recommendation for performance improvement."""
-    recommendation_id: str
-    machine_id: str
-    generated_at: datetime
-    category: str  # 'parameter_optimization', 'maintenance', 'energy_efficiency'
-    title: str
-    description: str
-    suggested_action: str
-    expected_impact_percentage: float
-    confidence_score: float
-    implementation_difficulty: str  # 'low', 'medium', 'high'
-    is_implemented: bool = False
-    implemented_at: Optional[datetime] = None
-    actual_impact_percentage: Optional[float] = None
-```
-
-#### DegradationAnalysis
-
-```python
-@dataclass
-class DegradationAnalysis:
-    """Long-term performance degradation analysis."""
-    machine_id: str
-    analysis_period: Tuple[datetime, datetime]
-    baseline_efficiency: float  # Average efficiency 12 months ago
-    current_efficiency: float
-    degradation_rate_per_month: float  # Percentage decline per month
-    projected_efficiency_6_months: float
-    trend_line_coefficients: Tuple[float, float]  # (slope, intercept)
-    monthly_averages: List[Tuple[datetime, float]]  # (month, avg_efficiency)
-```
-
-### Alert Data Models
-
-#### Alert
-
-```python
-@dataclass
-class Alert:
-    """System alert for performance or health issues."""
-    alert_id: str
-    machine_id: str
-    severity: str  # 'info', 'warning', 'critical'
-    alert_type: str  # 'performance', 'health', 'planning', 'data_quality'
-    message: str
-    triggered_at: datetime
-    acknowledged: bool = False
-    acknowledged_at: Optional[datetime] = None
-    acknowledged_by: Optional[str] = None
-    related_metric: Optional[str] = None
-    metric_value: Optional[float] = None
-```
-
-#### ThresholdConfiguration
-
-```python
-@dataclass
-class ThresholdConfiguration:
-    """Configurable alert thresholds."""
-    efficiency_threshold: float = 70.0  # Percentage
-    health_threshold: float = 60.0  # Score 0-100
-    planning_deviation_threshold: float = 20.0  # Percentage
-    data_quality_threshold: float = 90.0  # Percentage
-    degradation_rate_threshold: float = 2.0  # Percentage per month
-    energy_efficiency_degradation_threshold: float = 10.0  # Percentage
-```
-
-### Validation and Quality Models
-
-#### ValidationResult
-
-```python
-@dataclass
-class ValidationResult:
-    """Result of data validation check."""
-    is_valid: bool
-    sensor_name: str
-    value: float
-    expected_range: Tuple[float, float]
-    reason: Optional[str] = None
-```
-
-#### AnomalyRecord
-
-```python
-@dataclass
-class AnomalyRecord:
-    """Record of detected anomalous sensor reading."""
-    timestamp: datetime
-    sensor_name: str
-    value: float
-    expected_mean: float
-    expected_std: float
-    sigma_deviation: float  # How many standard deviations from mean
-```
-
-#### InefficiencyRecord
-
-```python
-@dataclass
-class InefficiencyRecord:
-    """Record of energy inefficiency period."""
-    start_time: datetime
-    end_time: datetime
-    average_power_consumption: float
-    average_output: float
-    energy_efficiency: float  # kWh/meter
-    baseline_efficiency: float
-    excess_consumption_kwh: float
-```
-
-### Report Data Models
-
-#### PerformanceReport
-
-```python
-@dataclass
-class PerformanceReport:
-    """Historical performance report."""
-    report_id: str
-    machine_id: str
-    report_period: Tuple[datetime, datetime]
-    generated_at: datetime
-    summary_statistics: Dict[str, float]  # avg_efficiency, total_downtime, etc.
-    comparison_metrics: Dict[str, float]  # Changes vs previous period
-    degradation_analysis: DegradationAnalysis
-    top_recommendations: List[Recommendation]
-    charts: Dict[str, str]  # Chart names to base64 encoded images
-    export_format: str  # 'pdf' or 'csv'
-```
-
-### Database Schemas
-
-#### PostgreSQL Tables
-
-**machines**
 ```sql
 CREATE TABLE machines (
     machine_id VARCHAR(50) PRIMARY KEY,
-    machine_name VARCHAR(255) NOT NULL,
-    rated_capacity FLOAT NOT NULL,
-    rated_capacity_unit VARCHAR(50) NOT NULL,
-    sensor_mappings JSONB NOT NULL,
-    alert_thresholds JSONB NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    facility_id VARCHAR(50),
+    machine_type VARCHAR(100),
+    rated_capacity FLOAT,
+    installation_date DATE,
+    config JSONB
 );
-```
 
-**trained_models**
-```sql
-CREATE TABLE trained_models (
-    model_id VARCHAR(50) PRIMARY KEY,
+CREATE TABLE kpis (
+    id SERIAL PRIMARY KEY,
     machine_id VARCHAR(50) REFERENCES machines(machine_id),
-    algorithm VARCHAR(50) NOT NULL,
-    trained_at TIMESTAMP NOT NULL,
-    training_start_date DATE NOT NULL,
-    training_end_date DATE NOT NULL,
-    feature_names JSONB NOT NULL,
-    feature_importance JSONB NOT NULL,
-    validation_mape FLOAT NOT NULL,
-    validation_r_squared FLOAT NOT NULL,
-    model_artifact_path VARCHAR(500) NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
+    timestamp TIMESTAMPTZ NOT NULL,
+    metric_name VARCHAR(100) NOT NULL,
+    value FLOAT NOT NULL,
+    unit VARCHAR(20),
+    aggregation_window VARCHAR(20),
+    INDEX idx_machine_time (machine_id, timestamp DESC),
+    INDEX idx_metric (metric_name, timestamp DESC)
 );
-```
 
-**predictions**
-```sql
-CREATE TABLE predictions (
-    prediction_id VARCHAR(50) PRIMARY KEY,
-    machine_id VARCHAR(50) REFERENCES machines(machine_id),
-    model_id VARCHAR(50) REFERENCES trained_models(model_id),
-    predicted_at TIMESTAMP NOT NULL,
-    prediction_horizon VARCHAR(50) NOT NULL,
-    predicted_output FLOAT NOT NULL,
-    confidence_score FLOAT NOT NULL,
-    confidence_interval_lower FLOAT,
-    confidence_interval_upper FLOAT,
-    top_influencing_factors JSONB NOT NULL
-);
-```
-
-**recommendations**
-```sql
-CREATE TABLE recommendations (
-    recommendation_id VARCHAR(50) PRIMARY KEY,
-    machine_id VARCHAR(50) REFERENCES machines(machine_id),
-    generated_at TIMESTAMP NOT NULL,
-    category VARCHAR(50) NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    suggested_action TEXT NOT NULL,
-    expected_impact_percentage FLOAT NOT NULL,
-    confidence_score FLOAT NOT NULL,
-    implementation_difficulty VARCHAR(20) NOT NULL,
-    is_implemented BOOLEAN NOT NULL DEFAULT FALSE,
-    implemented_at TIMESTAMP,
-    actual_impact_percentage FLOAT
-);
-```
-
-**alerts**
-```sql
 CREATE TABLE alerts (
-    alert_id VARCHAR(50) PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     machine_id VARCHAR(50) REFERENCES machines(machine_id),
-    severity VARCHAR(20) NOT NULL,
     alert_type VARCHAR(50) NOT NULL,
-    message TEXT NOT NULL,
-    triggered_at TIMESTAMP NOT NULL,
-    acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
-    acknowledged_at TIMESTAMP,
+    severity VARCHAR(20) NOT NULL,
+    message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
     acknowledged_by VARCHAR(100),
-    related_metric VARCHAR(100),
-    metric_value FLOAT
+    status VARCHAR(20) DEFAULT 'open'
 );
 ```
 
-**prediction_actuals**
-```sql
-CREATE TABLE prediction_actuals (
-    prediction_id VARCHAR(50) REFERENCES predictions(prediction_id),
-    actual_output FLOAT NOT NULL,
-    recorded_at TIMESTAMP NOT NULL,
-    deviation_percentage FLOAT NOT NULL,
-    PRIMARY KEY (prediction_id)
-);
+### 4. Performance Prediction Engine
+
+**Responsibility:** Train and serve ML models for production output forecasting.
+
+**Key Classes:**
+
+```python
+class PerformancePredictionEngine:
+    """Manages ML models for output prediction"""
+    models: Dict[str, MLModel]  # model_name -> model
+    feature_engineer: FeatureEngineer
+    model_registry: ModelRegistry
+    
+    def train_models(machine_id: str, training_data: DataFrame) -> Dict[str, float]
+    def predict(machine_id: str, current_state: Dict) -> Prediction
+    def evaluate_models(validation_data: DataFrame) -> Dict[str, Metrics]
+    def select_best_model() -> str
+
+class MLModel:
+    """Wrapper for scikit-learn models"""
+    model_type: str  # 'linear', 'random_forest', 'gradient_boosting'
+    model: Any  # sklearn model instance
+    hyperparameters: Dict
+    performance_metrics: Dict
+    trained_at: datetime
+    
+    def fit(X: DataFrame, y: Series) -> None
+    def predict(X: DataFrame) -> ndarray
+    def get_feature_importance() -> Dict[str, float]
+
+class FeatureEngineer:
+    """Transforms raw data into ML features"""
+    def extract_features(raw_data: DataFrame) -> DataFrame
+    def create_lag_features(data: DataFrame, lags: List[int]) -> DataFrame
+    def create_rolling_features(data: DataFrame, windows: List[int]) -> DataFrame
+    def encode_categorical(data: DataFrame) -> DataFrame
+
+class Prediction:
+    """Prediction result with confidence intervals"""
+    predicted_output: float
+    confidence_interval_lower: float
+    confidence_interval_upper: float
+    confidence_level: float
+    model_used: str
+    features_used: Dict[str, float]
 ```
 
-#### InfluxDB Measurements
+**ML Pipeline:**
 
-**sensor_readings**
-- Measurement: `machine_sensors`
-- Tags: `machine_id`, `sensor_name`
-- Fields: `value`, `unit`
-- Timestamp: nanosecond precision
+1. **Feature Engineering:**
+   - Current metrics: spindle_speed, temperature, vibration, power, cycle_time
+   - Lag features: previous 1, 5, 15 minute values
+   - Rolling statistics: mean, std, min, max over 15min, 1hour windows
+   - Time features: hour_of_day, day_of_week, shift_number
+   - Machine metadata: age, rated_capacity, maintenance_days_since
 
-**aggregated_metrics**
-- Measurement: `performance_metrics`
-- Tags: `machine_id`
-- Fields: `efficiency_score`, `actual_output`, `power_consumption`, `energy_efficiency`
-- Timestamp: 30-second intervals
+2. **Model Training:**
+   - Train three models: Linear Regression, Random Forest, Gradient Boosting
+   - Use 80/20 train/validation split
+   - Hyperparameter tuning with cross-validation
+   - Select best model based on MAPE on validation set
+   - Retrain daily with rolling window of last 30 days
 
+3. **Prediction Serving:**
+   - Real-time prediction API endpoint
+   - Feature extraction from current state
+   - Model inference with confidence intervals (bootstrap method)
+   - Cache predictions for 1 minute to reduce computation
 
+**Model Evaluation Metrics:**
+- MAPE (Mean Absolute Percentage Error): Target <10%
+- RMSE (Root Mean Squared Error)
+- R² (Coefficient of Determination): Target >0.85
+- Prediction latency: Target <2 seconds
 
-## API Design
+### 5. Degradation Intelligence Module
 
-### REST API Endpoints
+**Responsibility:** Detect performance degradation using time-series analysis.
 
-#### Metrics Endpoints
+**Key Classes:**
 
-**GET /api/v1/metrics/current**
-```
-Description: Get current performance metrics for a machine
-Query Parameters:
-  - machine_id: string (required)
-Response: PerformanceSnapshot
-Status Codes: 200 OK, 404 Not Found, 500 Internal Server Error
-```
+```python
+class DegradationDetector:
+    """Detects performance degradation trends"""
+    lookback_days: int  # default 7
+    confidence_threshold: float  # default 0.90
+    
+    def analyze_trends(machine_id: str, metrics: List[str]) -> List[DegradationAlert]
+    def detect_trend(time_series: Series) -> TrendAnalysis
+    def calculate_degradation_rate(time_series: Series) -> float
+    def correlate_metrics(metrics_data: DataFrame) -> Dict[str, List[str]]
 
-**GET /api/v1/metrics/historical**
-```
-Description: Get historical metrics for a time range
-Query Parameters:
-  - machine_id: string (required)
-  - start_time: ISO 8601 datetime (required)
-  - end_time: ISO 8601 datetime (required)
-  - aggregation: string (optional, default: "30s", values: "30s", "1h", "1d")
-Response: List[ProductionMetrics]
-Status Codes: 200 OK, 400 Bad Request, 404 Not Found
-```
+class TrendAnalysis:
+    """Result of trend detection"""
+    metric_name: str
+    trend_direction: str  # 'increasing', 'decreasing', 'stable'
+    trend_strength: float  # 0.0 to 1.0
+    confidence: float
+    degradation_rate: float  # percentage per day
+    statistical_test: str  # 'mann_kendall', 'linear_regression'
+    p_value: float
 
-#### Prediction Endpoints
-
-**GET /api/v1/predictions/next-shift**
-```
-Description: Get production prediction for next shift
-Query Parameters:
-  - machine_id: string (required)
-  - shift_duration_hours: int (optional, default: 8)
-Response: Prediction
-Status Codes: 200 OK, 404 Not Found, 503 Service Unavailable (if model not trained)
-```
-
-**GET /api/v1/predictions/history**
-```
-Description: Get historical predictions with actual outcomes
-Query Parameters:
-  - machine_id: string (required)
-  - start_time: ISO 8601 datetime (required)
-  - end_time: ISO 8601 datetime (required)
-Response: List[Prediction with actual_output]
-Status Codes: 200 OK, 400 Bad Request
-```
-
-#### Degradation Endpoints
-
-**GET /api/v1/degradation/trends**
-```
-Description: Get degradation analysis and trends
-Query Parameters:
-  - machine_id: string (required)
-  - analysis_months: int (optional, default: 12)
-Response: DegradationAnalysis
-Status Codes: 200 OK, 404 Not Found
+class DegradationAlert:
+    """Alert for detected degradation"""
+    machine_id: str
+    affected_metrics: List[str]
+    degradation_rate: float
+    confidence: float
+    potential_causes: List[str]
+    recommended_actions: List[str]
 ```
 
-**GET /api/v1/degradation/health-score**
-```
-Description: Get current machine health score
-Query Parameters:
-  - machine_id: string (required)
-Response: { machine_id: string, health_score: float, calculated_at: datetime }
-Status Codes: 200 OK, 404 Not Found
+**Degradation Detection Algorithm:**
+
+1. **Data Preparation:**
+   - Query last 7 days of KPI data for machine
+   - Resample to hourly averages to reduce noise
+   - Handle missing data with forward fill (max 2 hours)
+
+2. **Trend Detection:**
+   - Apply Mann-Kendall test for monotonic trends
+   - Fit linear regression to quantify trend slope
+   - Calculate confidence using p-value from statistical test
+   - Flag as degradation if: downward trend AND p-value <0.10
+
+3. **Degradation Rate Calculation:**
+   - Compute percentage change per day from regression slope
+   - Normalize by metric's historical mean
+   - Express as percentage decline per day
+
+4. **Root Cause Correlation:**
+   - Analyze correlation matrix of all metrics
+   - Identify metrics degrading simultaneously
+   - Match patterns against known failure modes
+   - Generate potential cause hypotheses
+
+5. **Alert Generation:**
+   - Create alert if confidence >90%
+   - Include affected metrics, rate, and recommendations
+   - Store in alerts table with severity based on rate
+
+### 6. Maximum Output Estimator
+
+**Responsibility:** Calculate realistic maximum achievable production output.
+
+**Key Classes:**
+
+```python
+class MaximumOutputEstimator:
+    """Estimates maximum achievable output"""
+    def estimate_maximum(machine_id: str, horizon: str) -> MaxOutputEstimate
+    def calculate_physical_limits(machine: Machine) -> Dict[str, float]
+    def adjust_for_degradation(base_max: float, degradation: float) -> float
+    def calculate_confidence_bounds(estimates: List[float]) -> Tuple[float, float]
+
+class MaxOutputEstimate:
+    """Maximum output estimate with confidence bounds"""
+    machine_id: str
+    short_term_max: float  # 1 hour peak
+    sustained_max: float  # 8 hour shift
+    long_term_max: float  # weekly average
+    confidence_lower: float
+    confidence_upper: float
+    confidence_level: float
+    limiting_factors: List[str]
+    updated_at: datetime
 ```
 
-#### Recommendation Endpoints
+**Estimation Algorithm:**
 
-**GET /api/v1/recommendations**
-```
-Description: Get active recommendations for a machine
-Query Parameters:
-  - machine_id: string (required)
-  - category: string (optional, values: "parameter_optimization", "maintenance", "energy_efficiency")
-  - top_n: int (optional, default: 5)
-Response: List[Recommendation]
-Status Codes: 200 OK, 404 Not Found
+1. **Baseline Maximum:**
+   - Start with rated capacity from machine specifications
+   - Adjust for machine age using depreciation curve
+   - Factor in historical peak performance (95th percentile)
+
+2. **Degradation Adjustment:**
+   - Query current degradation rate from Degradation Module
+   - Apply degradation factor: adjusted_max = baseline * (1 - degradation_rate)
+   - Consider maintenance history (recent maintenance increases max)
+
+3. **Time Horizon Adjustment:**
+   - Short-term (1 hour): Allow 110% of adjusted baseline (burst capacity)
+   - Sustained (8 hours): Use 95% of adjusted baseline (thermal limits)
+   - Long-term (weekly): Use 85% of adjusted baseline (maintenance, variability)
+
+4. **Confidence Bounds:**
+   - Calculate historical variance in peak performance
+   - Use bootstrap resampling of historical peaks
+   - Compute 90% confidence interval
+
+5. **Limiting Factor Identification:**
+   - Analyze which metric is closest to its limit
+   - Common factors: thermal (temperature), mechanical (vibration), electrical (power)
+   - Report top 3 limiting factors
+
+### 7. Recommendation Engine
+
+**Responsibility:** Generate actionable optimization recommendations.
+
+**Key Classes:**
+
+```python
+class RecommendationEngine:
+    """Generates optimization recommendations"""
+    rule_engine: RuleEngine
+    data_driven_engine: DataDrivenEngine
+    ranker: RecommendationRanker
+    
+    def generate_recommendations(machine_id: str) -> List[Recommendation]
+    def rank_recommendations(recommendations: List[Recommendation]) -> List[Recommendation]
+    def track_implementation(recommendation_id: str, outcome: Dict) -> None
+
+class Recommendation:
+    """Single optimization recommendation"""
+    recommendation_id: str
+    machine_id: str
+    category: str  # 'settings', 'maintenance', 'energy', 'scheduling'
+    title: str
+    description: str
+    expected_improvement: float  # percentage
+    implementation_difficulty: str  # 'low', 'medium', 'high'
+    estimated_cost: float
+    priority_score: float
+    supporting_data: Dict
+    created_at: datetime
+
+class RuleEngine:
+    """Rule-based recommendation generation"""
+    rules: List[Rule]
+    
+    def evaluate_rules(machine_state: Dict) -> List[Recommendation]
+
+class DataDrivenEngine:
+    """ML-based recommendation generation"""
+    optimization_model: MLModel
+    
+    def find_optimal_settings(current_state: Dict, target: str) -> Dict[str, float]
+    def simulate_changes(current_state: Dict, changes: Dict) -> float
 ```
 
-**POST /api/v1/recommendations/{recommendation_id}/implement**
-```
-Description: Mark recommendation as implemented
-Path Parameters:
-  - recommendation_id: string (required)
-Request Body: { implemented_at: datetime }
-Response: Recommendation
-Status Codes: 200 OK, 404 Not Found
+**Recommendation Generation Process:**
+
+1. **Rule-Based Recommendations:**
+   - IF efficiency <70% AND temperature >80°C THEN "Reduce operating speed by 10%"
+   - IF vibration increasing >5% per day THEN "Schedule bearing inspection"
+   - IF idle_time >20% THEN "Optimize production scheduling"
+   - IF power_consumption >baseline +15% THEN "Check for mechanical resistance"
+
+2. **Data-Driven Recommendations:**
+   - Train optimization model on historical data
+   - Find settings that historically achieved high efficiency
+   - Use gradient-based optimization to find optimal parameter combinations
+   - Validate recommendations don't violate safety constraints
+
+3. **Recommendation Ranking:**
+   - Score = (expected_improvement * 0.4) + (ease_of_implementation * 0.3) + (cost_effectiveness * 0.3)
+   - Filter to top 5 recommendations per machine
+   - Ensure diversity across categories
+
+4. **Implementation Tracking:**
+   - When operator marks recommendation as implemented
+   - Monitor metrics for 24 hours post-implementation
+   - Calculate actual improvement vs predicted
+   - Update recommendation models with outcomes
+
+### 8. REST API Service
+
+**Responsibility:** Provide unified HTTP interface to all system capabilities.
+
+**Key Endpoints:**
+
+```python
+# Machine Management
+GET    /api/v1/machines
+GET    /api/v1/machines/{machine_id}
+POST   /api/v1/machines
+PUT    /api/v1/machines/{machine_id}
+DELETE /api/v1/machines/{machine_id}
+
+# Real-time Data
+GET    /api/v1/machines/{machine_id}/current
+GET    /api/v1/machines/{machine_id}/metrics?start=<ts>&end=<ts>&metrics=<list>
+
+# KPIs
+GET    /api/v1/machines/{machine_id}/kpis?window=<5min|1hour|1day>
+GET    /api/v1/machines/{machine_id}/efficiency
+
+# Predictions
+GET    /api/v1/machines/{machine_id}/predictions
+POST   /api/v1/machines/{machine_id}/predictions/refresh
+
+# Degradation
+GET    /api/v1/machines/{machine_id}/degradation
+GET    /api/v1/machines/{machine_id}/health-score
+
+# Maximum Output
+GET    /api/v1/machines/{machine_id}/maximum-output
+
+# Recommendations
+GET    /api/v1/machines/{machine_id}/recommendations
+POST   /api/v1/recommendations/{rec_id}/implement
+POST   /api/v1/recommendations/{rec_id}/dismiss
+
+# Alerts
+GET    /api/v1/alerts?status=<open|resolved>&severity=<info|warning|critical>
+PUT    /api/v1/alerts/{alert_id}/acknowledge
+PUT    /api/v1/alerts/{alert_id}/resolve
+
+# Historical Data
+GET    /api/v1/machines/{machine_id}/history?start=<ts>&end=<ts>&metrics=<list>
+GET    /api/v1/machines/{machine_id}/export?format=<csv|json>&start=<ts>&end=<ts>
+
+# Model Management
+GET    /api/v1/models/{machine_id}
+POST   /api/v1/models/{machine_id}/train
+GET    /api/v1/models/{machine_id}/performance
+
+# Authentication
+POST   /api/v1/auth/login
+POST   /api/v1/auth/refresh
+POST   /api/v1/auth/logout
+
+# WebSocket
+WS     /api/v1/ws/machines/{machine_id}  # Real-time updates
 ```
 
-**POST /api/v1/recommendations/{recommendation_id}/impact**
-```
-Description: Record actual impact of implemented recommendation
-Path Parameters:
-  - recommendation_id: string (required)
-Request Body: { actual_impact_percentage: float }
-Response: Recommendation
-Status Codes: 200 OK, 404 Not Found, 400 Bad Request
-```
+**Authentication & Authorization:**
+- JWT-based authentication with access and refresh tokens
+- Role-based access control (RBAC)
+- Roles: operator (read-only), supervisor (read + acknowledge), admin (full access)
+- Token expiry: access token 15 minutes, refresh token 7 days
 
-#### Alert Endpoints
+### 9. Real-Time Dashboard
 
-**GET /api/v1/alerts**
-```
-Description: Get alerts for a machine
-Query Parameters:
-  - machine_id: string (required)
-  - severity: string (optional, values: "info", "warning", "critical")
-  - acknowledged: boolean (optional)
-  - start_time: ISO 8601 datetime (optional)
-  - end_time: ISO 8601 datetime (optional)
-Response: List[Alert]
-Status Codes: 200 OK, 404 Not Found
-```
+**Responsibility:** Visualize system data and enable user interactions.
 
-**POST /api/v1/alerts/{alert_id}/acknowledge**
-```
-Description: Acknowledge an alert
-Path Parameters:
-  - alert_id: string (required)
-Request Body: { acknowledged_by: string }
-Response: Alert
-Status Codes: 200 OK, 404 Not Found
-```
+**Key Components:**
 
-#### Report Endpoints
-
-**POST /api/v1/reports/generate**
-```
-Description: Generate performance report
-Request Body: {
-  machine_id: string,
-  start_time: datetime,
-  end_time: datetime,
-  report_type: string ("daily" | "weekly" | "monthly" | "quarterly"),
-  export_format: string ("pdf" | "csv")
+```typescript
+// Main Dashboard Views
+interface DashboardView {
+  OverviewPage: React.FC;           // Multi-machine summary
+  MachineDetailPage: React.FC;      // Single machine deep-dive
+  AlertsPage: React.FC;             // Alert management
+  RecommendationsPage: React.FC;    // Optimization suggestions
+  HistoricalAnalysisPage: React.FC; // Trend analysis
+  AdminPage: React.FC;              // Configuration
 }
-Response: PerformanceReport
-Status Codes: 200 OK, 400 Bad Request, 404 Not Found
-```
 
-**GET /api/v1/reports/{report_id}/download**
-```
-Description: Download generated report
-Path Parameters:
-  - report_id: string (required)
-Response: Binary file (PDF or CSV)
-Status Codes: 200 OK, 404 Not Found
-```
-
-#### Configuration Endpoints
-
-**GET /api/v1/config/machine/{machine_id}**
-```
-Description: Get machine configuration
-Path Parameters:
-  - machine_id: string (required)
-Response: MachineConfiguration
-Status Codes: 200 OK, 404 Not Found
-```
-
-**PUT /api/v1/config/machine/{machine_id}**
-```
-Description: Update machine configuration
-Path Parameters:
-  - machine_id: string (required)
-Request Body: MachineConfiguration (partial updates allowed)
-Response: MachineConfiguration
-Status Codes: 200 OK, 400 Bad Request, 404 Not Found
-```
-
-**GET /api/v1/config/thresholds**
-```
-Description: Get alert threshold configuration
-Response: ThresholdConfiguration
-Status Codes: 200 OK
-```
-
-**PUT /api/v1/config/thresholds**
-```
-Description: Update alert thresholds
-Request Body: ThresholdConfiguration (partial updates allowed)
-Response: ThresholdConfiguration
-Status Codes: 200 OK, 400 Bad Request
-```
-
-#### Model Management Endpoints
-
-**POST /api/v1/models/train**
-```
-Description: Trigger model training
-Request Body: {
-  machine_id: string,
-  algorithm: string ("linear" | "random_forest" | "gradient_boosting"),
-  lookback_days: int (optional, default: 90)
+// Real-time Data Hook
+function useRealtimeData(machineId: string) {
+  const [data, setData] = useState<MachineData>();
+  
+  useEffect(() => {
+    const ws = new WebSocket(`/api/v1/ws/machines/${machineId}`);
+    ws.onmessage = (event) => setData(JSON.parse(event.data));
+    return () => ws.close();
+  }, [machineId]);
+  
+  return data;
 }
-Response: { job_id: string, status: string }
-Status Codes: 202 Accepted, 400 Bad Request
+
+// Key Visualizations
+interface Visualizations {
+  EfficiencyGauge: React.FC<{value: number}>;
+  OutputComparisonChart: React.FC<{actual: number[], predicted: number[]}>;
+  TrendLineChart: React.FC<{timeSeries: TimeSeries[]}>;
+  DegradationHeatmap: React.FC<{machines: Machine[]}>;
+  RecommendationCard: React.FC<{recommendation: Recommendation}>;
+  AlertNotification: React.FC<{alert: Alert}>;
+}
 ```
 
-**GET /api/v1/models/status/{job_id}**
-```
-Description: Get model training job status
-Path Parameters:
-  - job_id: string (required)
-Response: { job_id: string, status: string, progress: float, model_id: string }
-Status Codes: 200 OK, 404 Not Found
-```
+**Dashboard Features:**
 
-**GET /api/v1/models/active/{machine_id}**
-```
-Description: Get active model for a machine
-Path Parameters:
-  - machine_id: string (required)
-Response: TrainedModel
-Status Codes: 200 OK, 404 Not Found
-```
+1. **Overview Page:**
+   - Grid of machine cards showing current status
+   - Color-coded efficiency indicators (green >80%, yellow 60-80%, red <60%)
+   - Active alerts count per machine
+   - Facility-level aggregated metrics
 
-### WebSocket API
+2. **Machine Detail Page:**
+   - Real-time metrics with 5-second refresh
+   - Actual vs predicted output comparison chart
+   - Efficiency trend over selectable time periods
+   - Current recommendations panel
+   - Degradation indicators with drill-down
 
-**WS /api/v1/ws/metrics/{machine_id}**
-```
-Description: Real-time metrics stream with 30-second updates
-Message Format: PerformanceSnapshot (JSON)
-```
+3. **Alerts Page:**
+   - Filterable alert list (status, severity, machine)
+   - Alert details with recommended actions
+   - Acknowledge and resolve actions
+   - Alert history timeline
 
-**WS /api/v1/ws/alerts/{machine_id}**
-```
-Description: Real-time alert notifications
-Message Format: Alert (JSON)
-```
+4. **Recommendations Page:**
+   - Ranked list of active recommendations
+   - Expected impact visualization
+   - Implementation tracking
+   - Historical recommendation outcomes
 
+## Data Models
 
+### Core Data Structures
 
-## Dashboard UI Specifications
-
-### Layout Structure
-
-The dashboard follows a responsive grid layout with the following sections:
-
-```
-+----------------------------------------------------------+
-|  Header: Machine Selector | Time Range | Export | Config |
-+----------------------------------------------------------+
-|  Summary Panel (Full Width)                              |
-|  - Efficiency Score | Health Score | Active Alerts       |
-+----------------------------------------------------------+
-|  Performance Comparison (50%)  |  Sensor Readings (50%)  |
-|  - Rated vs Actual vs Max      |  - Temperature          |
-|  - Bar Chart                   |  - Vibration            |
-|                                |  - Power                |
-+----------------------------------------------------------+
-|  Performance Trends (Full Width)                         |
-|  - Historical Efficiency Line Chart                      |
-|  - Projected Performance (dashed line)                   |
-+----------------------------------------------------------+
-|  Recommendations (60%)         |  Recent Alerts (40%)    |
-|  - Top 5 Ranked by Impact      |  - Last 10 Alerts       |
-|  - Action Buttons              |  - Acknowledge Buttons  |
-+----------------------------------------------------------+
-|  Energy Efficiency (50%)       |  Data Quality (50%)     |
-|  - kWh/meter Trend             |  - Quality Score        |
-|  - Cost Savings                |  - Missing Data %       |
-+----------------------------------------------------------+
+**Machine Configuration:**
+```python
+@dataclass
+class MachineConfig:
+    machine_id: str
+    facility_id: str
+    machine_type: str
+    manufacturer: str
+    model: str
+    installation_date: date
+    rated_capacity: float
+    rated_capacity_unit: str
+    modbus_config: ModbusConfig
+    sensor_mappings: List[SensorMapping]
+    operational_parameters: Dict[str, Any]
+    maintenance_schedule: MaintenanceSchedule
 ```
 
-### Component Specifications
-
-#### 1. Summary Panel Component
-
-**Purpose**: Display key metrics at a glance
-
-**Data Requirements**:
-- Current efficiency_score (float)
-- Current machine_health_score (float)
-- Active alerts count by severity
-
-**Visual Design**:
-- Three large metric cards side-by-side
-- Color coding: Green (>80%), Yellow (60-80%), Red (<60%)
-- Trend indicators (up/down arrows) showing 24-hour change
-- Last updated timestamp
-
-**Update Frequency**: 30 seconds via WebSocket
-
-#### 2. Performance Comparison Chart Component
-
-**Purpose**: Compare rated capacity, actual output, and maximum achievable output
-
-**Data Requirements**:
-- rated_capacity (float)
-- actual_output (float)
-- maximum_achievable_output (float)
-- All values in same unit (meters/hour)
-
-**Visual Design**:
-- Horizontal bar chart with three bars
-- Color coding: Rated (blue), Actual (green), Max Achievable (orange)
-- Percentage labels on bars
-- Gap indicator showing difference between actual and max achievable
-
-**Update Frequency**: 30 seconds
-
-#### 3. Sensor Readings Component
-
-**Purpose**: Display real-time sensor values with status indicators
-
-**Data Requirements**:
-- temperature (float, °C)
-- vibration (float, mm/s)
-- power_consumption (float, kW)
-- load (float, %)
-- For each: current value, normal range, status
-
-**Visual Design**:
-- List of sensor cards
-- Status indicator: Green (normal), Yellow (warning), Red (critical)
-- Gauge visualization for each sensor
-- Normal range displayed as background zone
-
-**Update Frequency**: 30 seconds via WebSocket
-
-#### 4. Performance Trends Graph Component
-
-**Purpose**: Show historical performance and future projections
-
-**Data Requirements**:
-- Historical efficiency_score (monthly averages for 24 months)
-- Regression line coefficients
-- Projected values for next 6 months
-
-**Visual Design**:
-- Line chart with time on X-axis, efficiency on Y-axis
-- Historical data: solid line
-- Projected data: dashed line
-- Shaded confidence interval for projections
-- Markers for significant events (maintenance, breakdowns)
-
-**Interactions**:
-- Hover to see exact values
-- Click to zoom into time period
-- Toggle between daily/weekly/monthly aggregation
-
-**Update Frequency**: Daily (static data, no real-time updates needed)
-
-#### 5. Recommendations Panel Component
-
-**Purpose**: Display actionable recommendations ranked by impact
-
-**Data Requirements**:
-- List of top 5 recommendations
-- For each: title, description, expected_impact, confidence, difficulty, category
-
-**Visual Design**:
-- Ordered list with rank numbers
-- Category badges (color-coded)
-- Impact percentage prominently displayed
-- Confidence score as progress bar
-- Difficulty indicator (Low/Medium/High with icons)
-- "Implement" button for each recommendation
-
-**Interactions**:
-- Click "Implement" to mark as implemented
-- Expand/collapse for full description
-- Filter by category
-
-**Update Frequency**: When new recommendations generated (typically hourly)
-
-#### 6. Recent Alerts Component
-
-**Purpose**: Show recent alerts requiring attention
-
-**Data Requirements**:
-- Last 10 alerts
-- For each: severity, message, timestamp, acknowledged status
-
-**Visual Design**:
-- List with severity icons (info/warning/critical)
-- Color-coded borders
-- Timestamp in relative format ("2 hours ago")
-- "Acknowledge" button for unacknowledged alerts
-- Auto-scroll for new alerts
-
-**Update Frequency**: Real-time via WebSocket
-
-#### 7. Energy Efficiency Component
-
-**Purpose**: Display energy consumption trends and optimization opportunities
-
-**Data Requirements**:
-- Daily energy_efficiency (kWh/meter) for past 30 days
-- Baseline efficiency
-- Estimated cost savings from recommendations
-- Electricity rate
-
-**Visual Design**:
-- Line chart showing kWh/meter over time
-- Horizontal line for baseline
-- Highlighted periods of inefficiency
-- Cost savings callout box
-
-**Update Frequency**: Daily
-
-#### 8. Data Quality Component
-
-**Purpose**: Show data quality metrics and issues
-
-**Data Requirements**:
-- data_quality_score (percentage)
-- Missing data percentage
-- Anomaly count
-- Last validation timestamp
-
-**Visual Design**:
-- Circular progress indicator for quality score
-- Color coding: Green (>90%), Yellow (80-90%), Red (<80%)
-- List of recent data quality issues
-- "View Details" link to quality report
-
-**Update Frequency**: Every 5 minutes
-
-### User Interactions
-
-#### Time Range Selection
-
-**Options**:
-- Last 1 hour
-- Last 8 hours (shift)
-- Last 24 hours
-- Last 7 days
-- Last 30 days
-- Custom range (date picker)
-
-**Behavior**:
-- Updates all time-dependent visualizations
-- Maintains selection in session storage
-- Shows loading indicators during data fetch
-
-#### Machine Selection (Multi-Machine Support)
-
-**Options**:
-- Dropdown list of configured machines
-- "All Machines" option for plant-level view
-
-**Behavior**:
-- Switches all dashboard data to selected machine
-- Maintains selection in URL parameter
-- Shows comparison view when "All Machines" selected
-
-#### Export Functionality
-
-**Options**:
-- Export current view as PDF
-- Export data as CSV
-- Generate full report (opens report configuration modal)
-
-**Behavior**:
-- PDF includes all visible charts and metrics
-- CSV exports raw data for current time range
-- Report generation shows progress indicator
-
-#### Configuration Access
-
-**Options**:
-- Machine settings
-- Alert thresholds
-- Model parameters
-- Database connections (admin only)
-
-**Behavior**:
-- Opens modal with configuration form
-- Validates inputs before saving
-- Shows success/error notifications
-- Applies changes without page reload
-
-### Responsive Design
-
-**Desktop (>1200px)**:
-- Full layout as shown above
-- Side-by-side panels
-
-**Tablet (768px - 1200px)**:
-- Stack panels vertically
-- Reduce chart heights
-- Collapse sensor readings to compact view
-
-**Mobile (<768px)**:
-- Single column layout
-- Swipeable cards for metrics
-- Simplified charts
-- Bottom navigation for sections
-
-### Accessibility
-
-- WCAG 2.1 AA compliance target
-- Keyboard navigation support
-- Screen reader labels for all interactive elements
-- High contrast mode support
-- Focus indicators on all interactive elements
-- Alternative text for charts (data tables available)
-
-### Performance Optimization
-
-- Lazy loading for charts (render on scroll)
-- Virtual scrolling for long lists (alerts, recommendations)
-- Debounced API calls for time range changes
-- Cached data with 30-second TTL
-- WebSocket connection pooling
-- Progressive image loading for exported PDFs
-
-
+**Sensor Reading:**
+```python
+@dataclass
+class SensorReading:
+    machine_id: str
+    timestamp: datetime
+    metrics: Dict[str, float]  # metric_name -> value
+    quality: str  # 'good', 'uncertain', 'bad'
+```
+
+**KPI Record:**
+```python
+@dataclass
+class KPIRecord:
+    machine_id: str
+    timestamp: datetime
+    metric_name: str
+    value: float
+    unit: str
+    aggregation_window: str
+    metadata: Dict[str, Any]
+```
+
+**Prediction Result:**
+```python
+@dataclass
+class PredictionResult:
+    machine_id: str
+    timestamp: datetime
+    predicted_output: float
+    confidence_interval: Tuple[float, float]
+    confidence_level: float
+    model_name: str
+    model_version: str
+    features: Dict[str, float]
+    prediction_horizon: str  # '1hour', '4hour', '8hour'
+```
+
+**Alert:**
+```python
+@dataclass
+class Alert:
+    alert_id: str
+    machine_id: str
+    alert_type: str
+    severity: str  # 'info', 'warning', 'critical'
+    title: str
+    message: str
+    created_at: datetime
+    resolved_at: Optional[datetime]
+    acknowledged_by: Optional[str]
+    acknowledged_at: Optional[datetime]
+    status: str  # 'open', 'acknowledged', 'resolved'
+    metadata: Dict[str, Any]
+```
+
+### Data Flow
+
+1. **Sensor Data Flow:**
+   ```
+   Machine → Modbus → Gateway → MQTT → Ingestion Service → InfluxDB
+   ```
+
+2. **KPI Calculation Flow:**
+   ```
+   InfluxDB → Aggregation Service → PostgreSQL (kpis table)
+   ```
+
+3. **Prediction Flow:**
+   ```
+   PostgreSQL (kpis) → Feature Engineering → ML Model → Prediction → PostgreSQL (predictions table)
+   ```
+
+4. **Alert Flow:**
+   ```
+   Degradation Detector → Alert → PostgreSQL (alerts table) → WebSocket → Dashboard
+   ```
+
+5. **Recommendation Flow:**
+   ```
+   [Predictions + Degradation + Max Output] → Recommendation Engine → PostgreSQL (recommendations table) → API → Dashboard
+   ```
 
 ## Correctness Properties
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system—essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-### Property Reflection
 
-After analyzing all acceptance criteria, I identified the following redundancies and consolidations:
-
-**Redundant Properties**:
-- Requirements 1.3 and 8.1 both test efficiency alert generation - consolidated into Property 3
-- Multiple properties test that rendered output contains specific fields - consolidated into comprehensive rendering properties
-
-**Combined Properties**:
-- Database connection properties (6.1, 6.2) combined into single connection configuration property
-- Display field properties (1.5, 2.5, 4.3, 5.4, 8.4, 9.1, 9.2, 9.5) combined into comprehensive rendering properties
-- Alert generation properties (1.3, 3.2, 4.4, 8.2, 8.3, 10.4, 12.5) consolidated by alert type
-
-### Core Calculation Properties
-
-**Property 1: Efficiency Score Calculation**
-
-*For any* actual output value and rated capacity value (where rated capacity > 0), calculating the efficiency score should equal (actual_output / rated_capacity) × 100
-
-**Validates: Requirements 1.2**
-
-**Property 2: Energy Efficiency Calculation**
-
-*For any* power consumption value and output value (where output > 0), calculating energy efficiency should equal power_consumption / output in kWh per unit
-
-**Validates: Requirements 10.1**
-
-**Property 3: Machine Health Score Calculation**
-
-*For any* degradation rate, downtime frequency, and efficiency variance values, the calculated machine health score should be between 0 and 100 inclusive
-
-**Validates: Requirements 3.5**
-
-**Property 4: Degradation Rate Calculation**
-
-*For any* historical performance data spanning 12 months, the degradation rate calculation should produce a percentage per month value by comparing current performance against the baseline
-
-**Validates: Requirements 3.1**
-
-**Property 5: Performance Gap Calculation**
-
-*For any* actual output and maximum achievable output (where maximum achievable > 0), the performance gap should equal ((maximum_achievable - actual) / maximum_achievable) × 100
-
-**Validates: Requirements 5.1**
-
-### Data Retrieval and Performance Properties
-
-**Property 6: Sensor Data Retrieval Time**
-
-*For any* valid time range query to InfluxDB, the data retrieval operation should complete within 5 seconds
-
+### Property 1: Modbus Data Parsing Correctness
+*For any* valid Modbus message conforming to the configured register mappings, parsing should extract all metric values correctly without data loss or corruption.
 **Validates: Requirements 1.1**
 
-**Property 7: Dashboard Update Frequency**
-
-*For any* 30-second time window during active monitoring, the dashboard should receive at least one metrics update via WebSocket
-
-**Validates: Requirements 1.4**
-
-**Property 8: Time-Series Data Timestamps**
-
-*For any* query to InfluxDB for sensor measurements, all returned records should include a valid timestamp field
-
-**Validates: Requirements 6.3**
-
-**Property 9: Production Metrics Completeness**
-
-*For any* query to PostgreSQL for production metrics, the returned data should include fields for actual_output, downtime, maintenance_logs, and breakdown_history
-
-**Validates: Requirements 6.4**
-
-### Alert Generation Properties
-
-**Property 10: Efficiency Alert Threshold**
-
-*For any* efficiency score below the configured threshold (default 70%), the system should generate a performance alert with severity "warning"
-
-**Validates: Requirements 1.3, 8.1**
-
-**Property 11: Health Alert Threshold**
-
-*For any* machine health score below 60, the system should generate a critical maintenance alert with severity "critical"
-
-**Validates: Requirements 8.2**
-
-**Property 12: Degradation Alert Threshold**
-
-*For any* degradation rate exceeding 2% per month, the system should generate a maintenance alert
-
-**Validates: Requirements 3.2**
-
-**Property 13: Planning Alert Threshold**
-
-*For any* predicted output that is below the production target by more than 20%, the system should generate a planning alert
-
-**Validates: Requirements 8.3**
-
-**Property 14: Data Quality Alert Threshold**
-
-*For any* data quality score below 90%, the system should generate a data quality alert
-
-**Validates: Requirements 12.5**
-
-**Property 15: Alert Persistence**
-
-*For any* generated alert, the system should persist the alert to PostgreSQL with all required fields (alert_id, severity, message, timestamp, machine_id)
-
-**Validates: Requirements 8.5**
-
-### Prediction and ML Properties
-
-**Property 16: Prediction Output**
-
-*For any* set of valid current machine parameters, the prediction service should return a prediction object containing predicted_output, confidence_score, and model_id
-
-**Validates: Requirements 2.1**
-
-**Property 17: Confidence Interval Display**
-
-*For any* prediction with confidence score below 0.8, the prediction object should include a confidence_interval tuple with lower and upper bounds
-
-**Validates: Requirements 2.3**
-
-**Property 18: Training Data Window**
-
-*For any* model training operation, the training data should span exactly 90 days from the most recent date
-
-**Validates: Requirements 2.4**
-
-**Property 19: Prediction Deviation Logging**
-
-*For any* actual output that deviates from the prediction by more than 15%, the system should log the deviation to the prediction_actuals table
-
-**Validates: Requirements 2.6**
-
-**Property 20: Data Split Ratio**
-
-*For any* training dataset, splitting the data should result in training set size being 80% (±1%) and validation set size being 20% (±1%) of the total
-
-**Validates: Requirements 7.2**
-
-**Property 21: Model Evaluation Metrics**
-
-*For any* trained model evaluation, the system should calculate and return both MAPE and R-squared metrics
-
-**Validates: Requirements 7.3**
-
-**Property 22: Model Selection Criteria**
-
-*For any* set of trained models where at least one has validation MAPE below 10%, the selected model should be the one with the lowest MAPE
-
-**Validates: Requirements 7.4**
-
-**Property 23: Model Retraining Trigger**
-
-*For any* active model with validation MAPE exceeding 15%, the system should trigger automatic retraining
-
-**Validates: Requirements 7.5**
-
-**Property 24: Model Metadata Storage**
-
-*For any* trained model, the stored metadata should include training_date, algorithm, feature_importance, validation_mape, and validation_r_squared
-
-**Validates: Requirements 7.6**
-
-**Property 25: Feature Importance Top 3**
-
-*For any* prediction display, the system should include exactly the top 3 features ranked by importance score
-
-**Validates: Requirements 13.1**
-
-**Property 26: Feature Importance Storage**
-
-*For any* trained model, the system should calculate and store feature importance scores for all input features
-
-**Validates: Requirements 13.2**
-
-### Recommendation Properties
-
-**Property 27: Recommendation Generation Threshold**
-
-*For any* machine state where efficiency score is below maximum achievable output by more than 10%, the recommendation engine should generate at least one optimization suggestion
-
-**Validates: Requirements 5.1**
-
-**Property 28: Recommendation Categories**
-
-*For any* set of generated recommendations for a machine, the recommendations should include at least one from each category: parameter_optimization, maintenance, and energy_efficiency
-
-**Validates: Requirements 5.3**
-
-**Property 29: Recommendation Required Fields**
-
-*For any* generated recommendation, the recommendation object should include expected_impact_percentage, confidence_score, and implementation_difficulty fields
-
-**Validates: Requirements 5.4**
-
-**Property 30: Recommendation Impact Tracking**
-
-*For any* recommendation marked as implemented, the system should store the implementation timestamp and allow recording of actual_impact_percentage
-
-**Validates: Requirements 5.5**
-
-**Property 31: Maintenance Recommendation Trigger**
-
-*For any* machine where maximum_achievable_output is less than 85% of rated_capacity, the system should generate a maintenance evaluation recommendation
-
-**Validates: Requirements 4.4**
-
-**Property 32: Energy Efficiency Recommendation Trigger**
-
-*For any* machine where energy efficiency has degraded by more than 10% from baseline, the recommendation engine should generate parameter adjustment or maintenance recommendations
-
-**Validates: Requirements 10.4**
-
-**Property 33: Top Recommendations Limit**
-
-*For any* request for top recommendations with limit N, the system should return at most N recommendations sorted by expected_impact_percentage in descending order
-
-**Validates: Requirements 9.4**
-
-### Data Validation Properties
-
-**Property 34: Sensor Range Validation**
-
-*For any* sensor reading with a configured min/max range, the validation result should mark the reading as invalid if the value is outside the range
-
-**Validates: Requirements 12.1**
-
-**Property 35: Anomaly Detection**
-
-*For any* sensor data series, readings that deviate by more than 3 standard deviations from the mean should be flagged as anomalous
-
-**Validates: Requirements 12.3**
-
-**Property 36: Data Quality Score Calculation**
-
-*For any* time window of sensor data, the data quality score should equal (count of valid readings / total expected readings) × 100
-
-**Validates: Requirements 12.4**
-
-**Property 37: Missing Data Detection**
-
-*For any* sensor data stream with a gap exceeding 5 minutes, the system should flag a data quality issue and exclude the affected period from analysis
-
-**Validates: Requirements 12.2**
-
-### Database Connection Properties
-
-**Property 38: Connection Retry Logic**
-
-*For any* database connection failure (InfluxDB or PostgreSQL), the system should retry the connection up to 3 times with exponential backoff before raising an error
-
-**Validates: Requirements 6.5**
-
-**Property 39: Data Validation After Retrieval**
-
-*For any* data retrieved from databases, the system should validate completeness and flag any missing or anomalous values
-
-**Validates: Requirements 6.6**
-
-### Trend and Analysis Properties
-
-**Property 40: Historical Trend Data Range**
-
-*For any* performance trend graph request, the system should return monthly average efficiency scores for exactly 24 months of historical data
-
-**Validates: Requirements 3.3**
-
-**Property 41: Performance Projection**
-
-*For any* historical performance data, the system should fit a regression line and generate projected efficiency values for the next 6 months
-
-**Validates: Requirements 3.4**
-
-**Property 42: Maximum Achievable Output Window**
-
-*For any* maximum achievable output calculation, the system should analyze performance data from a rolling 30-day window
-
-**Validates: Requirements 4.5**
-
-**Property 43: Maximum Output Identification**
-
-*For any* 30-day performance window, the maximum achievable output should equal the best performance achieved under similar operating conditions
-
-**Validates: Requirements 4.1**
-
-**Property 44: Energy Efficiency Baseline**
-
-*For any* energy efficiency analysis, the baseline should be calculated as the average kWh/meter over the past 30 days
-
-**Validates: Requirements 10.3**
-
-**Property 45: Inefficient Period Identification**
-
-*For any* time period where power consumption exceeds the baseline without a corresponding output increase, the system should identify and flag the period as inefficient
-
-**Validates: Requirements 10.2**
-
-### Multi-Machine Properties
-
-**Property 46: Machine Configuration Storage**
-
-*For any* set of machine configurations, the system should store each machine with individual rated_capacity and sensor_mappings
-
-**Validates: Requirements 11.1**
-
-**Property 47: Multi-Machine Summary**
-
-*For any* multi-machine view request, the system should return efficiency_score and machine_health_score for all configured machines
-
-**Validates: Requirements 11.2**
-
-**Property 48: Machine Sorting**
-
-*For any* list of machines with sort criteria (efficiency, health_score, or alert_status), the returned list should be correctly ordered by the specified criterion
-
-**Validates: Requirements 11.3**
-
-**Property 49: Best and Worst Performer Identification**
-
-*For any* set of machines with efficiency scores, the system should correctly identify and highlight the machine with the highest score (best) and lowest score (worst)
-
-**Validates: Requirements 11.4**
-
-**Property 50: Plant-Level Aggregation**
-
-*For any* set of machines, the plant-level performance metrics should be correctly aggregated (e.g., total output = sum of all machine outputs, average efficiency = weighted average)
-
-**Validates: Requirements 11.5**
-
-### Report Generation Properties
-
-**Property 51: Report Summary Statistics**
-
-*For any* generated performance report, the report should include average_efficiency_score, total_downtime, degradation_rate, and energy_consumption statistics
-
-**Validates: Requirements 14.2**
-
-**Property 52: Report Comparison Metrics**
-
-*For any* generated report, the system should include comparison metrics showing performance change versus the previous period of the same duration
-
-**Validates: Requirements 14.3**
-
-**Property 53: Report Completeness**
-
-*For any* exported report, the report should include all relevant charts, tables, and recommendations from the current analysis
-
-**Validates: Requirements 14.5**
-
-### Configuration Properties
-
-**Property 54: Configuration Persistence**
-
-*For any* configuration change (database connections, ML parameters, alert thresholds), the system should persist the change and make it available for retrieval
-
-**Validates: Requirements 15.2, 15.3**
-
-**Property 55: Configuration Hot-Reload**
-
-*For any* valid configuration change, the system should apply the change without requiring a system restart
-
-**Validates: Requirements 15.4**
-
-**Property 56: Configuration Audit Logging**
-
-*For any* configuration change, the system should log the change with timestamp and user identification to the audit log
-
-**Validates: Requirements 15.5**
-
-### Rendering and Display Properties
-
-**Property 57: Metric Unit Display**
-
-*For any* rendered metric display, output values should include "meters/hour" unit and efficiency values should include "%" unit
-
+### Property 2: MQTT Publishing Completeness
+*For any* sensor reading received from Modbus, the system should publish a corresponding MQTT message containing all metrics from the original reading.
+**Validates: Requirements 1.2**
+
+### Property 3: Time-Series Storage Round-Trip
+*For any* sensor data published to MQTT, storing it in InfluxDB and then querying it back should preserve all metric values and timestamp precision to the millisecond.
+**Validates: Requirements 1.3**
+
+### Property 4: Retry Logic with Exponential Backoff
+*For any* sensor data transmission failure, the system should attempt exactly 3 retries with exponentially increasing delays before giving up.
 **Validates: Requirements 1.5**
 
-**Property 58: Prediction Display Fields**
+### Property 5: KPI Aggregation Correctness
+*For any* time window of raw sensor data, aggregating it into KPIs should produce values that match manual calculation of the same aggregation functions (mean, sum, count, etc.).
+**Validates: Requirements 1.6**
 
-*For any* rendered prediction, the display should include predicted_output, confidence_level, and comparison_with_rated_capacity
+### Property 6: Prediction Feature Completeness
+*For any* prediction request, the feature extraction should include all 5 required features (machine speed, temperature, vibration, power consumption, material properties).
+**Validates: Requirements 2.3**
 
-**Validates: Requirements 2.5**
+### Property 7: Prediction Confidence Intervals
+*For any* prediction generated by the Performance Prediction Engine, the result should include both lower and upper confidence bounds with a specified confidence level.
+**Validates: Requirements 2.6**
 
-**Property 59: Maximum Achievable Display**
+### Property 8: Efficiency Score Calculation
+*For any* actual output value and rated capacity, the efficiency score should equal (actual / rated) * 100, correctly handling the mathematical relationship.
+**Validates: Requirements 3.1**
 
-*For any* performance comparison display, the system should show all three values: rated_capacity, actual_output, and maximum_achievable_output
+### Property 9: Efficiency Score Capping
+*For any* actual output that exceeds rated capacity, the efficiency score should be capped at exactly 100% and a flag should be set indicating over-capacity operation.
+**Validates: Requirements 3.3**
 
+### Property 10: Efficiency Aggregation Completeness
+*For any* machine at any point in time, the efficiency metrics should include all four required aggregation levels (current, hourly average, daily average, weekly average).
+**Validates: Requirements 3.4**
+
+### Property 11: Missing Data Handling
+*For any* efficiency calculation where actual output data is missing or invalid, the system should mark the score as unavailable and use the last valid value for trend calculations.
+**Validates: Requirements 3.5**
+
+### Property 12: Trend Detection Accuracy
+*For any* synthetic time-series with a known downward trend of statistical significance, the Degradation Intelligence Module should detect the trend with confidence matching the statistical test p-value.
+**Validates: Requirements 4.1**
+
+### Property 13: Degradation Alert Generation
+*For any* detected performance degradation with confidence ≥90%, the system should generate an alert containing the affected machine, degradation rate, and confidence level.
 **Validates: Requirements 4.3**
 
-**Property 60: Alert Display Fields**
+### Property 14: Degradation Rate Quantification
+*For any* time-series showing performance decline, the calculated degradation rate should accurately represent the percentage decline per day based on the trend slope.
+**Validates: Requirements 4.4**
 
-*For any* rendered alert, the display should include severity_level, timestamp, and affected_machine
+### Property 15: Multi-Metric Degradation Correlation
+*For any* set of metrics where multiple metrics degrade simultaneously, the system should identify the correlation and flag it as a potential systemic issue.
+**Validates: Requirements 4.5**
 
+### Property 16: Variance vs Degradation Distinction
+*For any* time-series with normal operational variance (no trend), the system should not flag it as degradation, distinguishing random fluctuation from genuine decline.
+**Validates: Requirements 4.6**
+
+### Property 17: Maximum Output Calculation
+*For any* machine with known parameters (age, rated capacity, degradation level), the Maximum Output Estimator should produce a non-negative value less than or equal to the rated capacity adjusted for age.
+**Validates: Requirements 5.1**
+
+### Property 18: Physical Constraints Consideration
+*For any* two machines with identical rated capacity but different ages or degradation levels, the machine with greater age or degradation should have a lower or equal maximum output estimate.
+**Validates: Requirements 5.2**
+
+### Property 19: Multi-Horizon Output Estimates
+*For any* maximum output estimation, the result should include all three time horizons (short-term peak, sustained, long-term) with short-term ≥ sustained ≥ long-term.
+**Validates: Requirements 5.3**
+
+### Property 20: Overload Alert Threshold
+*For any* machine where actual output reaches or exceeds 95% of estimated maximum, the system should generate an overload warning alert.
+**Validates: Requirements 5.5**
+
+### Property 21: Maximum Output Confidence Bounds
+*For any* maximum output estimate, the result should include confidence bounds (lower and upper) with a specified confidence level (90%).
+**Validates: Requirements 5.6**
+
+### Property 22: Recommendation Ranking
+*For any* set of generated recommendations, they should be ordered by priority score in descending order (highest priority first).
+**Validates: Requirements 6.1**
+
+### Property 23: Recommendation Structure Completeness
+*For any* generated recommendation, it should include all required fields: expected improvement percentage, implementation difficulty level, and estimated cost.
+**Validates: Requirements 6.3**
+
+### Property 24: Recommendation Category Diversity
+*For any* machine with sufficient operational data, the generated recommendations should span at least 4 distinct categories (settings, maintenance, energy, scheduling).
+**Validates: Requirements 6.4**
+
+### Property 25: Recommendation Implementation Tracking
+*For any* recommendation marked as implemented, the system should create a tracking record and monitor the affected metrics for outcome measurement.
+**Validates: Requirements 6.5**
+
+### Property 26: Recommendation Count Limit
+*For any* machine at any point in time, the number of active recommendations should never exceed 5.
+**Validates: Requirements 6.6**
+
+### Property 27: Dashboard Data Completeness
+*For any* dashboard view, the production data should include both actual and predicted output values for comparison.
+**Validates: Requirements 7.3**
+
+### Property 28: Multi-Period Trend Data Availability
+*For any* key metric (efficiency, output rate, energy consumption), the system should provide trend data for all selectable time periods (hour, day, week, month).
+**Validates: Requirements 7.4**
+
+### Property 29: Alert Visibility in Dashboard
+*For any* active alert in the system, it should appear in the dashboard data with its severity level clearly indicated.
+**Validates: Requirements 7.5**
+
+### Property 30: Multi-Facility Aggregation
+*For any* operator with machines across multiple facilities, facility-level aggregated metrics should equal the sum/average of individual machine metrics within that facility.
+**Validates: Requirements 7.7**
+
+### Property 31: Data Downsampling Preservation
+*For any* time-series data that undergoes downsampling, the downsampled version should preserve key statistical properties (mean, min, max) of the original data within the downsampling window.
 **Validates: Requirements 8.4**
 
-**Property 61: Summary Panel Fields**
+### Property 32: Historical Data Export Round-Trip
+*For any* historical data exported to CSV or JSON format, parsing the exported file should reconstruct the original data with all metrics and timestamps intact.
+**Validates: Requirements 8.5**
 
-*For any* dashboard summary panel, the display should include current efficiency_score, machine_health_score, and active_alerts_count
-
+### Property 33: Train-Test Split Proportion
+*For any* model training operation, the data should be split such that training data comprises 80% (±1%) and validation data comprises 20% (±1%) of the total dataset.
 **Validates: Requirements 9.1**
 
-**Property 62: Comparison Chart Fields**
-
-*For any* comparison chart, the data should include rated_capacity, actual_output, and maximum_achievable_output
-
+### Property 34: Model Evaluation Metrics Completeness
+*For any* trained model evaluation, the results should include all three required metrics: MAPE, RMSE, and R-squared.
 **Validates: Requirements 9.2**
 
-**Property 63: Sensor Reading Status Indicators**
+### Property 35: Model Selection Based on Performance
+*For any* newly trained model that performs worse than the current production model (higher MAPE or lower R²), the system should retain the current model and reject the new one.
+**Validates: Requirements 9.3**
 
-*For any* sensor reading display, each sensor should include a status indicator (normal/warning/critical) based on the value relative to expected ranges
+### Property 36: Manual Retraining Completion
+*For any* administrator-triggered manual retraining request with valid parameters, the system should complete the training and return success or failure status.
+**Validates: Requirements 9.4**
 
-**Validates: Requirements 9.5**
+### Property 37: Model Versioning Completeness
+*For any* saved ML model, the model metadata should include version number, timestamp, and performance metrics for traceability.
+**Validates: Requirements 9.6**
 
-**Property 64: Recommendation Explanation**
+### Property 38: Machine Configuration Completeness
+*For any* new machine added to the system, the configuration should include all required fields: rated capacity, sensor mappings, and operational parameters.
+**Validates: Requirements 10.1**
 
-*For any* generated recommendation, the recommendation should include an explanation field describing the reasoning based on observed correlations
+### Property 39: Configuration Validation
+*For any* configuration change with invalid values (negative capacity, invalid sensor addresses, etc.), the system should reject the change and return a descriptive error.
+**Validates: Requirements 10.2**
 
-**Validates: Requirements 13.4**
+### Property 40: Configuration Audit Logging
+*For any* configuration change saved to the system, an audit log entry should be created containing timestamp, user identifier, and description of the change.
+**Validates: Requirements 10.4**
 
-**Property 65: Confidence Score Display**
-
-*For any* prediction or recommendation display, the system should include the confidence_score alongside the main value
-
-**Validates: Requirements 13.5**
-
-### Cost Calculation Properties
-
-**Property 66: Energy Cost Savings Estimation**
-
-*For any* energy optimization recommendation with potential reduction in kWh and configured electricity rate, the estimated cost savings should equal potential_reduction_kwh × electricity_rate
-
+### Property 41: Machine Type Template Support
+*For any* supported machine type, the system should provide a configuration template that can be loaded and applied to new machines of that type.
 **Validates: Requirements 10.5**
 
+### Property 42: Configuration Backup-Restore Round-Trip
+*For any* system configuration, backing it up and then restoring from the backup should produce an equivalent configuration with all settings preserved.
+**Validates: Requirements 10.6**
 
+### Property 43: Critical Condition Alert Generation
+*For any* critical condition (efficiency drop >20%, degradation alert, predicted failure), the system should generate an alert with appropriate severity level.
+**Validates: Requirements 11.1**
+
+### Property 44: Multi-Channel Notification Routing
+*For any* alert with configured notification channels, the alert should be sent to all configured channels (dashboard, email, SMS) based on alert type configuration.
+**Validates: Requirements 11.2**
+
+### Property 45: Alert Structure Completeness
+*For any* generated alert, it should include all required fields: severity level, affected machine ID, description, and recommended actions.
+**Validates: Requirements 11.3**
+
+### Property 46: Alert Throttling
+*For any* alert condition that triggers multiple times within a 15-minute window, only the first alert should be sent, with subsequent duplicates suppressed until the window expires.
+**Validates: Requirements 11.4**
+
+### Property 47: Automatic Alert Resolution
+*For any* alert whose triggering condition is no longer true, the system should automatically update the alert status to resolved and notify relevant users.
+**Validates: Requirements 11.5**
+
+### Property 48: Energy Efficiency Metrics Calculation
+*For any* machine with power consumption and production output data, the system should correctly calculate energy per unit produced, idle power consumption, and identify peak power events.
+**Validates: Requirements 12.2**
+
+### Property 49: Energy Threshold Alert
+*For any* machine where energy consumption exceeds baseline by more than 15%, the system should generate an alert and flag the condition for investigation.
+**Validates: Requirements 12.3**
+
+### Property 50: Energy Recommendation Generation
+*For any* machine with energy optimization opportunities, the Recommendation Engine should generate at least one recommendation in the energy efficiency category.
+**Validates: Requirements 12.4**
+
+### Property 51: Energy Cost Calculation
+*For any* energy consumption value and configured electricity rate, the cost estimate should equal consumption multiplied by rate, correctly handling unit conversions.
+**Validates: Requirements 12.5**
+
+### Property 52: Energy-Output Correlation Analysis
+*For any* machine with sufficient operational data, the system should identify the operating point (speed, load) that minimizes energy per unit produced.
+**Validates: Requirements 12.6**
+
+### Property 53: Authentication Enforcement
+*For any* API request without valid authentication credentials, the system should reject the request with a 401 Unauthorized status.
+**Validates: Requirements 13.1**
+
+### Property 54: Role-Based Authorization
+*For any* user with a specific role (Operator, Supervisor, Administrator), the system should allow only the actions permitted for that role and deny all others.
+**Validates: Requirements 13.2**
+
+### Property 55: Unauthorized Action Logging
+*For any* attempt to perform an unauthorized action, the system should deny access, return an error, and create an audit log entry of the attempt.
+**Validates: Requirements 13.3**
+
+### Property 56: Password Complexity Validation
+*For any* password that doesn't meet complexity requirements (minimum 8 characters, mixed case, numbers, special characters), the system should reject it with a descriptive error.
+**Validates: Requirements 13.4**
+
+### Property 57: User Action Audit Logging
+*For any* user action (login, configuration change, alert acknowledgment), the system should create an audit log entry with user ID, action type, and timestamp.
+**Validates: Requirements 13.7**
+
+### Property 58: Database Unavailability Buffering
+*For any* sensor data received when the Time-Series Database is unavailable, the system should buffer the data in memory and successfully flush it to storage when the database becomes available again.
+**Validates: Requirements 14.1**
+
+### Property 59: Prediction Service Graceful Degradation
+*For any* period when the ML prediction service is unavailable, the system should continue displaying historical data and alerts without crashing or losing functionality.
+**Validates: Requirements 14.2**
+
+### Property 60: Component Failure Detection and Recovery
+*For any* critical component failure detected by health checks, the system should generate an administrator alert and attempt automatic recovery procedures.
+**Validates: Requirements 14.4**
+
+### Property 61: Network Reconnection
+*For any* network interruption that disconnects data collection, the system should automatically reconnect when network connectivity is restored and resume data collection without manual intervention.
+**Validates: Requirements 14.6**
+
+### Property 62: Modbus Device Discovery
+*For any* Modbus device configured in the system and available on the network, the automatic discovery process should successfully identify and list the device.
+**Validates: Requirements 15.2**
+
+### Property 63: System Load Alert
+*For any* system state where computational load exceeds 80% of capacity, the system should generate an alert to administrators with scaling recommendations.
+**Validates: Requirements 15.4**
 
 ## Error Handling
 
 ### Error Categories
 
-#### 1. Database Connection Errors
+**1. Data Collection Errors:**
+- Modbus communication failures (timeout, invalid response, connection refused)
+- MQTT broker unavailability
+- Sensor data validation failures (out-of-range values, malformed messages)
 
-**Scenarios**:
-- InfluxDB or PostgreSQL connection failure
-- Network timeout
-- Authentication failure
-- Database unavailable
+**Error Handling Strategy:**
+- Retry with exponential backoff (up to 3 attempts)
+- Log all failures with context (device ID, error type, timestamp)
+- Buffer data in memory during transient failures
+- Alert administrators for persistent failures (>5 minutes)
 
-**Handling Strategy**:
-- Implement exponential backoff retry (3 attempts)
-- Log connection errors with full context
-- Return cached data if available
-- Display user-friendly error message on dashboard
-- Trigger alert for persistent connection failures
+**2. Storage Errors:**
+- InfluxDB write failures (connection timeout, disk full, authentication failure)
+- PostgreSQL connection pool exhaustion
+- Query timeouts
 
-**Error Response Format**:
-```json
-{
-  "error": "database_connection_failed",
-  "message": "Unable to connect to InfluxDB after 3 attempts",
-  "details": {
-    "host": "influxdb.example.com",
-    "last_attempt": "2024-01-15T10:30:45Z",
-    "retry_count": 3
-  },
-  "fallback": "displaying_cached_data"
-}
-```
+**Error Handling Strategy:**
+- Implement circuit breaker pattern for database connections
+- Buffer writes in memory (up to 1 hour of data)
+- Degrade gracefully: continue monitoring even if storage fails
+- Automatic retry with backoff
+- Alert administrators immediately for storage failures
 
-#### 2. Data Quality Errors
-
-**Scenarios**:
-- Missing sensor data
-- Anomalous readings (beyond 3 sigma)
-- Data gaps exceeding 5 minutes
-- Invalid data format
-
-**Handling Strategy**:
-- Flag affected time periods
-- Exclude invalid data from calculations
-- Apply interpolation for small gaps (< 1 minute)
-- Generate data quality alerts
-- Display data quality indicators on dashboard
-
-**Error Response Format**:
-```json
-{
-  "error": "data_quality_issue",
-  "message": "Sensor data missing for 8 minutes",
-  "details": {
-    "sensor": "temperature",
-    "gap_start": "2024-01-15T10:22:00Z",
-    "gap_end": "2024-01-15T10:30:00Z",
-    "gap_duration_minutes": 8
-  },
-  "action": "excluded_from_analysis"
-}
-```
-
-#### 3. Model Training Errors
-
-**Scenarios**:
+**3. ML Model Errors:**
 - Insufficient training data
-- All models exceed MAPE threshold (10%)
-- Training job timeout
-- Model serialization failure
+- Model training failures (convergence issues, numerical instability)
+- Prediction errors (invalid input features, model not loaded)
+- Model performance degradation
 
-**Handling Strategy**:
-- Validate data sufficiency before training (minimum 30 days)
-- Continue using previous model if new training fails
-- Log training failures with detailed diagnostics
-- Notify administrators of training failures
-- Provide fallback to simpler model (linear regression)
+**Error Handling Strategy:**
+- Use default/fallback models when training fails
+- Validate input features before prediction
+- Return error responses with clear messages for API calls
+- Monitor model performance continuously
+- Alert administrators when model performance drops below threshold
 
-**Error Response Format**:
-```json
-{
-  "error": "model_training_failed",
-  "message": "All trained models exceed MAPE threshold",
-  "details": {
-    "models_trained": ["linear", "random_forest", "gradient_boosting"],
-    "best_mape": 12.5,
-    "threshold": 10.0,
-    "training_data_period": "2023-10-15 to 2024-01-15"
-  },
-  "fallback": "using_previous_model",
-  "previous_model_id": "model_20240101_rf"
-}
-```
-
-#### 4. Prediction Errors
-
-**Scenarios**:
-- No trained model available
-- Invalid input parameters
-- Model inference failure
-- Confidence score calculation error
-
-**Handling Strategy**:
-- Return error with clear message if no model available
-- Validate input parameters before prediction
-- Log prediction failures with input context
-- Return prediction with low confidence if calculation partially fails
-- Suggest model training if no model exists
-
-**Error Response Format**:
-```json
-{
-  "error": "prediction_unavailable",
-  "message": "No trained model available for predictions",
-  "details": {
-    "machine_id": "machine_001",
-    "last_training_attempt": "2024-01-10T08:00:00Z",
-    "last_training_status": "failed"
-  },
-  "action": "trigger_model_training"
-}
-```
-
-#### 5. Configuration Errors
-
-**Scenarios**:
-- Invalid configuration values
-- Missing required configuration
-- Configuration validation failure
-- Conflicting configuration settings
-
-**Handling Strategy**:
-- Validate all configuration changes before applying
-- Reject invalid configurations with detailed error messages
-- Maintain previous valid configuration on failure
-- Log configuration errors with user context
-- Provide configuration validation feedback in real-time
-
-**Error Response Format**:
-```json
-{
-  "error": "invalid_configuration",
-  "message": "Rated capacity must be greater than zero",
-  "details": {
-    "field": "rated_capacity",
-    "provided_value": -100,
-    "constraint": "value > 0"
-  },
-  "action": "configuration_rejected"
-}
-```
-
-#### 6. API Errors
-
-**Scenarios**:
+**4. API Errors:**
 - Invalid request parameters
-- Missing required fields
-- Resource not found
+- Authentication/authorization failures
 - Rate limiting exceeded
+- Downstream service unavailability
 
-**Handling Strategy**:
-- Return appropriate HTTP status codes
-- Provide detailed error messages
-- Include validation errors for all invalid fields
-- Implement rate limiting with clear feedback
-- Log API errors for monitoring
+**Error Handling Strategy:**
+- Return standard HTTP error codes with descriptive messages
+- Implement request validation with detailed error responses
+- Use circuit breakers for downstream services
+- Provide fallback responses when possible (cached data, historical averages)
 
-**Error Response Format**:
+**5. Configuration Errors:**
+- Invalid machine configuration
+- Sensor mapping errors
+- Missing required parameters
+
+**Error Handling Strategy:**
+- Validate all configuration changes before applying
+- Provide detailed validation error messages
+- Maintain configuration history for rollback
+- Prevent system startup with invalid configuration
+
+### Error Response Format
+
+All API errors follow a consistent JSON structure:
+
 ```json
 {
-  "error": "validation_error",
-  "message": "Invalid request parameters",
-  "details": {
-    "errors": [
-      {
-        "field": "start_time",
-        "message": "Must be in ISO 8601 format",
-        "provided": "2024-01-15"
-      },
-      {
-        "field": "machine_id",
-        "message": "Machine not found",
-        "provided": "machine_999"
-      }
-    ]
-  },
-  "status_code": 400
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error description",
+    "details": {
+      "field": "specific_field_name",
+      "reason": "Detailed reason for failure"
+    },
+    "timestamp": "2024-01-15T10:30:45.123Z",
+    "request_id": "uuid-for-tracing"
+  }
 }
 ```
-
-### Error Recovery Strategies
-
-#### Graceful Degradation
-
-When critical services fail, the system should:
-1. Continue operating with reduced functionality
-2. Serve cached data with staleness indicators
-3. Disable features that depend on failed services
-4. Display clear status messages to users
-5. Automatically recover when services restore
-
-#### Circuit Breaker Pattern
-
-For external service calls (InfluxDB, PostgreSQL):
-- Open circuit after 5 consecutive failures
-- Half-open after 60 seconds to test recovery
-- Close circuit after 3 successful calls
-- Provide fallback responses when circuit is open
-
-#### Retry Policies
-
-**Database Queries**:
-- Max retries: 3
-- Backoff: Exponential (1s, 2s, 4s)
-- Timeout per attempt: 10 seconds
-
-**Model Training**:
-- Max retries: 2
-- Backoff: Linear (5 minutes between attempts)
-- Timeout: 30 minutes per attempt
-
-**API Calls**:
-- Max retries: 2
-- Backoff: Exponential (500ms, 1s)
-- Timeout per attempt: 5 seconds
 
 ### Logging Strategy
 
-**Log Levels**:
-- **ERROR**: System failures, unhandled exceptions, critical issues
-- **WARN**: Degraded performance, data quality issues, retry attempts
-- **INFO**: Normal operations, configuration changes, model training completion
-- **DEBUG**: Detailed execution flow, parameter values, intermediate calculations
+**Log Levels:**
+- DEBUG: Detailed diagnostic information (disabled in production)
+- INFO: Normal operational events (data collection, predictions generated)
+- WARNING: Unexpected but handled situations (retries, fallback to defaults)
+- ERROR: Errors that require attention (failed operations, degraded functionality)
+- CRITICAL: System-wide failures requiring immediate action
 
-**Log Format**:
+**Structured Logging:**
+All logs use JSON format with consistent fields:
 ```json
 {
   "timestamp": "2024-01-15T10:30:45.123Z",
   "level": "ERROR",
-  "component": "DataCollector",
-  "message": "Failed to retrieve sensor data",
+  "service": "modbus-gateway",
+  "machine_id": "CNC-001",
+  "message": "Modbus connection timeout",
+  "error_code": "MODBUS_TIMEOUT",
   "context": {
-    "machine_id": "machine_001",
-    "sensor": "temperature",
-    "error": "connection_timeout",
-    "retry_count": 3
-  },
-  "trace_id": "abc123def456"
+    "host": "192.168.1.100",
+    "port": 502,
+    "retry_attempt": 2
+  }
 }
 ```
-
-**Log Retention**:
-- ERROR logs: 90 days
-- WARN logs: 30 days
-- INFO logs: 7 days
-- DEBUG logs: 1 day
 
 ## Testing Strategy
 
@@ -2243,232 +1176,158 @@ For external service calls (InfluxDB, PostgreSQL):
 
 The system requires both unit testing and property-based testing for comprehensive coverage:
 
-**Unit Tests**: Verify specific examples, edge cases, and error conditions
-**Property Tests**: Verify universal properties across all inputs
+**Unit Tests:**
+- Specific examples demonstrating correct behavior
+- Edge cases and boundary conditions
+- Integration points between components
+- Error conditions and exception handling
+- Mock external dependencies (databases, MQTT, Modbus devices)
 
-Both approaches are complementary and necessary. Unit tests catch concrete bugs in specific scenarios, while property tests verify general correctness across a wide range of inputs.
-
-### Property-Based Testing
-
-**Framework**: Hypothesis (Python)
-
-**Configuration**:
+**Property-Based Tests:**
+- Universal properties that hold for all inputs
+- Comprehensive input coverage through randomization
 - Minimum 100 iterations per property test
-- Each test tagged with feature name and property number
-- Tag format: `# Feature: ai-performance-prediction, Property N: [property text]`
+- Each property test references its design document property
+- Tag format: **Feature: ai-performance-prediction, Property {number}: {property_text}**
 
-**Test Organization**:
+### Testing Framework Selection
+
+**Python Services:**
+- Unit tests: pytest
+- Property-based tests: Hypothesis
+- Mocking: pytest-mock, unittest.mock
+- Coverage: pytest-cov (target: >85%)
+
+**TypeScript Dashboard:**
+- Unit tests: Jest
+- Component tests: React Testing Library
+- Property-based tests: fast-check
+- E2E tests: Playwright (for critical user flows)
+
+### Test Organization
+
 ```
 tests/
-  property_tests/
-    test_calculations.py          # Properties 1-5
-    test_data_retrieval.py         # Properties 6-9
-    test_alerts.py                 # Properties 10-15
-    test_predictions.py            # Properties 16-26
-    test_recommendations.py        # Properties 27-33
-    test_validation.py             # Properties 34-39
-    test_trends.py                 # Properties 40-45
-    test_multi_machine.py          # Properties 46-50
-    test_reports.py                # Properties 51-53
-    test_configuration.py          # Properties 54-56
-    test_rendering.py              # Properties 57-65
-    test_cost_calculations.py      # Property 66
+├── unit/
+│   ├── test_modbus_gateway.py
+│   ├── test_data_ingestion.py
+│   ├── test_kpi_aggregation.py
+│   ├── test_prediction_engine.py
+│   ├── test_degradation_detector.py
+│   ├── test_max_output_estimator.py
+│   ├── test_recommendation_engine.py
+│   └── test_api.py
+├── property/
+│   ├── test_properties_data_collection.py
+│   ├── test_properties_prediction.py
+│   ├── test_properties_degradation.py
+│   ├── test_properties_recommendations.py
+│   └── test_properties_security.py
+├── integration/
+│   ├── test_end_to_end_data_flow.py
+│   ├── test_ml_pipeline.py
+│   └── test_alert_workflow.py
+└── fixtures/
+    ├── sample_modbus_data.py
+    ├── sample_time_series.py
+    └── sample_machine_configs.py
 ```
 
-**Example Property Test**:
+### Property-Based Test Configuration
+
+Each property test must:
+1. Run minimum 100 iterations (configured in test framework)
+2. Include a comment tag referencing the design property
+3. Use appropriate generators for input data
+4. Assert the universal property holds for all generated inputs
+
+Example property test structure:
+
 ```python
 from hypothesis import given, strategies as st
 import pytest
 
-# Feature: ai-performance-prediction, Property 1: Efficiency Score Calculation
+# Feature: ai-performance-prediction, Property 8: Efficiency Score Calculation
 @given(
-    actual_output=st.floats(min_value=0, max_value=10000, allow_nan=False),
-    rated_capacity=st.floats(min_value=0.1, max_value=10000, allow_nan=False)
+    actual_output=st.floats(min_value=0, max_value=10000),
+    rated_capacity=st.floats(min_value=1, max_value=10000)
 )
+@pytest.mark.property_test
 def test_efficiency_score_calculation(actual_output, rated_capacity):
-    """For any actual output and rated capacity (>0), 
-    efficiency score should equal (actual / rated) * 100"""
-    
-    result = calculate_efficiency_score(actual_output, rated_capacity)
+    """
+    For any actual output value and rated capacity,
+    the efficiency score should equal (actual / rated) * 100
+    """
+    efficiency = calculate_efficiency_score(actual_output, rated_capacity)
     expected = (actual_output / rated_capacity) * 100
-    
-    assert abs(result - expected) < 0.01, \
-        f"Expected {expected}, got {result}"
-```
-
-**Generator Strategies**:
-
-For complex data types, define custom strategies:
-
-```python
-from hypothesis import strategies as st
-from datetime import datetime, timedelta
-
-# Strategy for sensor readings
-sensor_reading_strategy = st.builds(
-    SensorReading,
-    timestamp=st.datetimes(
-        min_value=datetime(2020, 1, 1),
-        max_value=datetime(2025, 12, 31)
-    ),
-    sensor_name=st.sampled_from(['temperature', 'vibration', 'power', 'load']),
-    value=st.floats(min_value=0, max_value=1000, allow_nan=False),
-    unit=st.sampled_from(['°C', 'mm/s', 'kW', '%']),
-    is_valid=st.booleans()
-)
-
-# Strategy for machine configurations
-machine_config_strategy = st.builds(
-    MachineConfiguration,
-    machine_id=st.text(min_size=1, max_size=50),
-    rated_capacity=st.floats(min_value=1, max_value=10000),
-    sensor_mappings=st.dictionaries(
-        keys=st.sampled_from(['temp', 'vib', 'power', 'load']),
-        values=st.text(min_size=1, max_size=100)
-    )
-)
-```
-
-### Unit Testing
-
-**Framework**: pytest
-
-**Coverage Target**: 80% code coverage minimum
-
-**Test Organization**:
-```
-tests/
-  unit_tests/
-    test_data_collector.py
-    test_ml_engine.py
-    test_recommendation_engine.py
-    test_alert_service.py
-    test_api_endpoints.py
-    test_validators.py
-```
-
-**Unit Test Focus Areas**:
-
-1. **Edge Cases**:
-   - Zero values (rated capacity = 0, output = 0)
-   - Boundary conditions (exactly at thresholds)
-   - Empty datasets
-   - Single data point scenarios
-
-2. **Error Conditions**:
-   - Database connection failures
-   - Invalid input formats
-   - Missing required fields
-   - Timeout scenarios
-
-3. **Integration Points**:
-   - API endpoint request/response handling
-   - Database query execution
-   - Model serialization/deserialization
-   - WebSocket message handling
-
-4. **Specific Examples**:
-   - Known good configurations
-   - Historical bug scenarios
-   - Regression test cases
-
-**Example Unit Test**:
-```python
-import pytest
-from unittest.mock import Mock, patch
-
-def test_efficiency_alert_at_threshold():
-    """Test alert generation when efficiency exactly at 70% threshold"""
-    monitor = AlertMonitor(thresholds=ThresholdConfiguration())
-    
-    alert = monitor.check_efficiency_alert(efficiency_score=70.0)
-    
-    # At threshold, should not generate alert (only below)
-    assert alert is None
-
-def test_efficiency_alert_below_threshold():
-    """Test alert generation when efficiency below 70% threshold"""
-    monitor = AlertMonitor(thresholds=ThresholdConfiguration())
-    
-    alert = monitor.check_efficiency_alert(efficiency_score=69.9)
-    
-    assert alert is not None
-    assert alert.severity == "warning"
-    assert alert.alert_type == "performance"
-
-def test_database_connection_retry():
-    """Test retry logic on connection failure"""
-    connector = InfluxDBConnector("host", 8086, "db", "user", "pass")
-    
-    with patch('influxdb.InfluxDBClient') as mock_client:
-        mock_client.side_effect = ConnectionError("Connection refused")
-        
-        with pytest.raises(ConnectionError):
-            connector.connect()
-        
-        # Should have attempted 3 times
-        assert mock_client.call_count == 3
+    assert abs(efficiency - expected) < 0.01  # Allow small floating point error
 ```
 
 ### Integration Testing
 
-**Framework**: pytest with docker-compose for services
+**End-to-End Data Flow:**
+- Test complete pipeline: Modbus → MQTT → InfluxDB → KPI → Prediction → Dashboard
+- Use Docker Compose to spin up all services
+- Inject test data at Modbus layer
+- Verify data appears correctly in dashboard API
 
-**Test Environment**:
-- Dockerized InfluxDB and PostgreSQL
-- Test data fixtures
-- Isolated test databases
+**ML Pipeline Testing:**
+- Test model training with synthetic data
+- Verify model persistence and loading
+- Test prediction serving with various inputs
+- Validate model selection logic
 
-**Integration Test Scenarios**:
-1. End-to-end data flow (InfluxDB → Processing → Dashboard)
-2. Model training pipeline
-3. Alert generation and persistence
-4. Report generation with all components
-5. WebSocket real-time updates
+**Alert Workflow Testing:**
+- Trigger various alert conditions
+- Verify alert generation, notification, and resolution
+- Test alert throttling and deduplication
 
 ### Performance Testing
 
-**Tools**: Locust for load testing
+**Load Testing:**
+- Simulate 50 machines sending data at 1 Hz
+- Measure system throughput and latency
+- Identify bottlenecks and resource constraints
 
-**Performance Targets**:
-- API response time: < 200ms (p95)
-- Dashboard load time: < 2 seconds
-- Sensor data retrieval: < 5 seconds
-- Model prediction: < 1 second
-- Concurrent users: 50+
+**Stress Testing:**
+- Gradually increase load beyond normal capacity
+- Verify graceful degradation
+- Test recovery after overload
 
-**Load Test Scenarios**:
-1. Multiple concurrent dashboard users
-2. High-frequency sensor data ingestion
-3. Simultaneous model training and predictions
-4. Report generation under load
+**Endurance Testing:**
+- Run system for extended periods (24+ hours)
+- Monitor for memory leaks and resource exhaustion
+- Verify data retention and cleanup policies
 
-### Test Data Management
+### Test Data Generation
 
-**Fixtures**:
-- Sample machine configurations
-- Historical sensor data (1 year)
-- Production metrics with known patterns
-- Pre-trained models for testing
+**Synthetic Time-Series:**
+- Generate realistic sensor data with known patterns
+- Include normal operation, degradation trends, anomalies
+- Use for testing degradation detection and prediction accuracy
 
-**Data Generation**:
-- Use Hypothesis for property tests
-- Use factory_boy for unit test fixtures
-- Synthetic data with realistic patterns for integration tests
+**Machine Configurations:**
+- Create diverse machine profiles (different types, ages, capacities)
+- Test system behavior across various configurations
+
+**Edge Cases:**
+- Missing data, out-of-range values, malformed messages
+- Extreme values (very high/low temperatures, speeds)
+- Boundary conditions (exactly at thresholds)
 
 ### Continuous Integration
 
-**CI Pipeline**:
-1. Lint and format check (black, flake8, mypy)
-2. Unit tests (parallel execution)
-3. Property tests (100 iterations minimum)
-4. Integration tests (with Docker services)
-5. Coverage report (fail if < 80%)
-6. Performance regression tests
+**CI Pipeline:**
+1. Lint and format check (black, flake8, eslint)
+2. Unit tests (fast, run on every commit)
+3. Property-based tests (run on every commit)
+4. Integration tests (run on PR)
+5. Coverage report (fail if <85%)
+6. Build Docker images
+7. Deploy to staging environment
 
-**Test Execution Time Targets**:
-- Unit tests: < 2 minutes
-- Property tests: < 10 minutes
-- Integration tests: < 5 minutes
-- Total CI pipeline: < 20 minutes
-
+**Test Execution Time Targets:**
+- Unit tests: <2 minutes
+- Property tests: <5 minutes
+- Integration tests: <10 minutes
+- Full CI pipeline: <20 minutes
