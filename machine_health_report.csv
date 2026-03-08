@@ -1,0 +1,29 @@
+MachineName,Risk_Level,Health_Score,Operator_Action,Shift_Incharge_Action,Manager_Action
+Cu Tapping - B,HIGH,0.09,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+Cu Tapping - E,HIGH,0.11,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+DT1  4000 MM,HIGH,0.11,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+72B ARMORING  U4,HIGH,0.12,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+72B ARMORING U2,HIGH,0.19,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+Cu Tapping - C,HIGH,0.27,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+Cu Tapping - G,HIGH,0.44,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+Cu Tapping - F,HIGH,0.48,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+Cu Tapping - D,HIGH,0.6,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+DT3  3200 MM,HIGH,0.97,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+150 Troester,HIGH,1.93,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+Drum twister(DT)-2,HIGH,4.76,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+48B Armouring,HIGH,6.15,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+54 Armouring,HIGH,7.38,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+Multi-Tapping,HIGH,8.86,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+Sioplas MVCC 7,HIGH,28.29,"Check machine cleaning, lubrication and alignment",Plan maintenance before next shift,Schedule preventive maintenance
+120 MM Ext U3,MEDIUM,40.19,Monitor machine speed and minor stoppages,Monitor performance and reduce minor stops,Investigate root cause of downtime
+120 MM Ext U4,MEDIUM,54.57,Monitor machine speed and minor stoppages,Monitor performance and reduce minor stops,Investigate root cause of downtime
+Nokia 90 MM,MEDIUM,54.98,Monitor machine speed and minor stoppages,Monitor performance and reduce minor stops,Investigate root cause of downtime
+150 MM Ext U3,LOW,83.06,Machine running normal,No action required,Production stable
+150 Covema,LOW,88.96,Machine running normal,No action required,Production stable
+TROESTER CCV U3,LOW,89.56,Machine running normal,No action required,Production stable
+CCV Sloze U4,LOW,92.43,Machine running normal,No action required,Production stable
+Sioplas MVCC 4,LOW,92.93,Machine running normal,No action required,Production stable
+Sioplas MVCC 3,LOW,96.17,Machine running normal,No action required,Production stable
+SioPlas U4,LOW,98.14,Machine running normal,No action required,Production stable
+Sioplas MVCC 5,LOW,98.36,Machine running normal,No action required,Production stable
+SioPlas U3,LOW,99.04,Machine running normal,No action required,Production stable
